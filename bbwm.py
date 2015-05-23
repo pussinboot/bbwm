@@ -39,11 +39,11 @@ class Window():
 
 class Container():
 	"""
-	each container contains windows or subcontainers
-	also specifies how it will be partitioned
+	each container is a rectangle of screen space
+	also specifies how next container will be partitioned
 	"""
 
-	def __init__(self,parent,window,x,y,w,h,hv=0,r=1): 
+	def __init__(self,parent,x,y,w,h,hv=0,r=1): 
 		# vh - default split for new containers (0 for horizontal 1 for vertical, r - ratio of split
 		# hv is either 0 or 1, r is any positive rational number :^) 
 		self.parent = parent # the workspace
@@ -51,26 +51,31 @@ class Container():
 		self.x, self.y, self.w, self.h = x, y, w, h
 		self.hv, self.r = hv, r
 
+	def __str__(self):
+		return "container @({0},{1}) w: {2} h: {3}".format(self.x, self.y, self.w, self.h)
+
 	def resize(self, x, y, w, h): 
 		self.x, self.y, self.w, self.h  = x, y, w, h
 
 	def get_dims(self):
 		return self.x, self.y, self.w, self.h
 
-	def add_sub(self,window,hv = None): # hv allows to partition non-default way if passed
+	def add_sub(self,hv = None): # hv allows to partition non-default way if passed
 		if hv is None: hv = self.hv
 		if self.r == 1:
-			new_r = len(self.contents)+1
+			new_r = len(self.contents)+2
 		else:
 			new_r = self.r
 		if hv == 0:
 			new_w, new_h = self.w - self.w // new_r, self.h
 		else:
 			new_w, new_h = self.w, self.h - self.h // new_r
+		new_sub = Container(self,self.x+new_w*(1-hv),self.y+new_h*hv,self.w-new_w*(1-hv),self.h-new_h*hv)
 		self.resize(self.x,self.y,new_w,new_h)
-		new_sub = Container(self.parent,self.x+new_w*(1-hv),self.y+new_h*hv,self.w-new_w*(1-hv),self.h-new_h*hv)
-		#fug
 		self.parent.add_container(new_sub)
+
+	def add_container(self,container):
+		self.contents.append(container)
 
 
 
@@ -82,37 +87,95 @@ class Workspace():
 	"""
 	def __init__(self,n,W,H):
 		self.n = n
-		self.containers = [] # first version will do everything with arrays because they are ez, will see about more efficient structures later
 		self.W, self.H = W, H
 		self.p_style = DEFAULT_PARTITION
-		self.main_container = Container(self,None,0,0,W,H)
+		self.main_container = Container(self,0,0,W,H)
+		self.containers = [self.main_container] # first version will do everything with arrays because they are ez, will see about more efficient structures later
+
 
 	def __str__(self):
 		# print out a cute picture
 		tempa = [[0 for x in range(self.W)] for x in range(self.H)] 
+		for ci in range(len(self.containers)):
+			x,y,w,h = self.containers[ci].get_dims()
+			for j in range(h):
+				for i in range(w):
+					#print(x+i,y+j)
+					tempa[y+j][x+i] = ci
+
 		tor = "Workspace #{0} W: {1} H: {2}".format(self.n,self.W,self.H) + "\n"
 		for j in range(self.H):
 			for i in range(self.W):
 				tor = tor + str(tempa[j][i])
 			tor = tor + "\n"
+		for i in range(len(self.containers)):
+			tor = tor + "{0} - ".format(i) + self.containers[i].__str__() + "\n"
 		return tor
 
-	def add_container(self,container,window,where=-1): # adds a window and tiles it, with the possiblity of tiling in new creative way : )
-		self.containers.append(container)
-		self.reflow(window,where)
-
-	def reflow(self,window,where):
-		self.containers[where].add_sub(window)
-
-
-
-
-
+	def add_container(self,container=None,where=-1,hv=0): # adds a window and tiles it, with the possiblity of tiling in new creative way : )
+		if container is None:
+			self.containers[where].add_sub(hv)
+		else:
+			self.containers.append(container)
+		
 if __name__=='__main__':
 	testwin = Window("lol",1,2,3,4)
 	#print(testwin)
 	testworkspace = Workspace(1,12,6)
 	print(testworkspace)
-	testcontainer = Container(testworkspace,testwin,0,0,6,3)
-	print(testcontainer.get_dims())
-	testworkspace.add_container(testcontainer,testwin)
+
+#	Workspace #1 W: 12 H: 6
+#	000000000000
+#	000000000000
+#	000000000000
+#	000000000000
+#	000000000000
+#	000000000000
+#	0 - container @(0,0) w: 12 h: 6
+
+	testcontainer = Container(testworkspace,0,0,6,3)
+	#print(testcontainer.get_dims())
+	testworkspace.add_container()
+	print(testworkspace)	
+
+#	Workspace #1 W: 12 H: 6
+#	000000111111
+#	000000111111
+#	000000111111
+#	000000111111
+#	000000111111
+#	000000111111
+#	0 - container @(0,0) w: 6 h: 6
+#	1 - container @(6,0) w: 6 h: 6
+
+	testworkspace.add_container(where=0,hv=1)
+	print(testworkspace)	
+
+#	Workspace #1 W: 12 H: 6
+#	000000111111
+#	000000111111
+#	000000111111
+#	222222111111
+#	222222111111
+#	222222111111
+#	0 - container @(0,0) w: 6 h: 3
+#	1 - container @(6,0) w: 6 h: 6
+#	2 - container @(0,3) w: 6 h: 3
+
+	# current progress
+	# adding to last container works gud
+	testworkspace.add_container(where=1,hv=1)
+	print(testworkspace)	
+
+#	Workspace #1 W: 12 H: 6
+#	000000111111
+#	000000111111
+#	000000111111
+#	222222000000
+#	222222000000
+#	222222000000
+#	0 - container @(0,0) w: 6 h: 3
+#	1 - container @(6,0) w: 6 h: 3
+#	2 - container @(0,3) w: 6 h: 3
+
+	# but this doesn't work, it resizes correctly but the subcontainers aren't ending up in the workspace
