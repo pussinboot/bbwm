@@ -50,9 +50,18 @@ class Container():
 		self.contents = []
 		self.x, self.y, self.w, self.h = x, y, w, h
 		self.hv, self.r = hv, r
+		self.index = 0
 
 	def __str__(self):
-		return "container @({0},{1}) w: {2} h: {3}".format(self.x, self.y, self.w, self.h)
+		tor = "container @({0},{1}) w: {2} h: {3}".format(self.x, self.y, self.w, self.h)
+		return tor
+
+	def __iter__(self):
+		for sc in self.contents:
+			yield sc
+
+	def __len__(self):
+		return len(self.contents)
 
 	def resize(self, x, y, w, h): 
 		self.x, self.y, self.w, self.h  = x, y, w, h
@@ -64,6 +73,7 @@ class Container():
 		if hv is None: hv = self.hv
 		if self.r == 1:
 			new_r = len(self.contents)+2
+#			new_r = len(self.parent) + 2
 		else:
 			new_r = self.r
 		if hv == 0:
@@ -73,6 +83,7 @@ class Container():
 		new_sub = Container(self,self.x+new_w*(1-hv),self.y+new_h*hv,self.w-new_w*(1-hv),self.h-new_h*hv)
 		self.resize(self.x,self.y,new_w,new_h)
 		self.parent.add_container(new_sub)
+#		self.add_container(new_sub) # wrong
 
 	def add_container(self,container):
 		self.contents.append(container)
@@ -92,25 +103,35 @@ class Workspace():
 		self.main_container = Container(self,0,0,W,H)
 		self.containers = [self.main_container] # first version will do everything with arrays because they are ez, will see about more efficient structures later
 
-
 	def __str__(self):
-		# print out a cute picture
-		tempa = [[0 for x in range(self.W)] for x in range(self.H)] 
-		for ci in range(len(self.containers)):
-			x,y,w,h = self.containers[ci].get_dims()
-			for j in range(h):
-				for i in range(w):
-					#print(x+i,y+j)
-					tempa[y+j][x+i] = ci
-
 		tor = "Workspace #{0} W: {1} H: {2}".format(self.n,self.W,self.H) + "\n"
+		tempa = [[0 for x in range(self.W)] for x in range(self.H)] 
+		foot = "-"*self.W+"\n"
+		ci = 0
+		for c in self.containers:
+			foot += str(ci) + " - " + c.__str__() + "\n"
+			tempa = self.draw_help(tempa,c,ci)
+			ci += 1
+			for sc in c:
+				foot += "-> " + str(ci) + " - " + sc.__str__() + "\n"
+				tempa = self.draw_help(tempa,sc,ci)
+				ci += 1
 		for j in range(self.H):
 			for i in range(self.W):
 				tor = tor + str(tempa[j][i])
 			tor = tor + "\n"
-		for i in range(len(self.containers)):
-			tor = tor + "{0} - ".format(i) + self.containers[i].__str__() + "\n"
-		return tor
+		return tor + foot
+
+	def __len__(self):
+		return len(self.containers)
+
+	def draw_help(self,a,c,n):
+		x,y,w,h = c.get_dims()
+		for j in range(h):
+			for i in range(w):
+				#print(x+i,y+j)
+				a[y+j][x+i] = n
+		return a
 
 	def add_container(self,container=None,where=-1,hv=0): # adds a window and tiles it, with the possiblity of tiling in new creative way : )
 		if container is None:
@@ -121,61 +142,18 @@ class Workspace():
 if __name__=='__main__':
 	testwin = Window("lol",1,2,3,4)
 	#print(testwin)
+
 	testworkspace = Workspace(1,12,6)
 	print(testworkspace)
 
-#	Workspace #1 W: 12 H: 6
-#	000000000000
-#	000000000000
-#	000000000000
-#	000000000000
-#	000000000000
-#	000000000000
-#	0 - container @(0,0) w: 12 h: 6
-
 	testcontainer = Container(testworkspace,0,0,6,3)
 	#print(testcontainer.get_dims())
+	
 	testworkspace.add_container()
 	print(testworkspace)	
+	for _ in range(2):
+		testworkspace.add_container(hv=1)
+		print(testworkspace)	
 
-#	Workspace #1 W: 12 H: 6
-#	000000111111
-#	000000111111
-#	000000111111
-#	000000111111
-#	000000111111
-#	000000111111
-#	0 - container @(0,0) w: 6 h: 6
-#	1 - container @(6,0) w: 6 h: 6
-
-	testworkspace.add_container(where=0,hv=1)
-	print(testworkspace)	
-
-#	Workspace #1 W: 12 H: 6
-#	000000111111
-#	000000111111
-#	000000111111
-#	222222111111
-#	222222111111
-#	222222111111
-#	0 - container @(0,0) w: 6 h: 3
-#	1 - container @(6,0) w: 6 h: 6
-#	2 - container @(0,3) w: 6 h: 3
-
-	# current progress
-	# adding to last container works gud
-	testworkspace.add_container(where=1,hv=1)
-	print(testworkspace)	
-
-#	Workspace #1 W: 12 H: 6
-#	000000111111
-#	000000111111
-#	000000111111
-#	222222000000
-#	222222000000
-#	222222000000
-#	0 - container @(0,0) w: 6 h: 3
-#	1 - container @(6,0) w: 6 h: 3
-#	2 - container @(0,3) w: 6 h: 3
-
-	# but this doesn't work, it resizes correctly but the subcontainers aren't ending up in the workspace
+# need to actually figure out structure of how things subcontain and also add a call to correctly resize everything else in a subcontainer
+# new containers are added to the wrong place because parent is not being used correctly, things arent being subcontained right p much
