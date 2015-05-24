@@ -66,24 +66,32 @@ class Container():
 	def resize(self, x, y, w, h): 
 		self.x, self.y, self.w, self.h  = x, y, w, h
 
-	def get_dims(self):
-		return self.x, self.y, self.w, self.h
-
-	def add_sub(self,hv = None): # hv allows to partition non-default way if passed
+	def reflow(self,hv = None):
 		if hv is None: hv = self.hv
 		if self.r == 1:
-			new_r = len(self.contents)+2
-#			new_r = len(self.parent) + 2
-		else:
+			new_r = len(self)
+		else: # not sure if this will work correctly
 			new_r = self.r
 		if hv == 0:
 			new_w, new_h = self.w - self.w // new_r, self.h
 		else:
 			new_w, new_h = self.w, self.h - self.h // new_r
-		new_sub = Container(self,self.x+new_w*(1-hv),self.y+new_h*hv,self.w-new_w*(1-hv),self.h-new_h*hv)
-		self.resize(self.x,self.y,new_w,new_h)
-		self.parent.add_container(new_sub)
-#		self.add_container(new_sub) # wrong
+		for i in range(self.__len__()):
+			# resize all subcontainers according to split ratio
+			new_x = self.x + i*new_w*(1-hv)
+			new_y = self.y + i*new_h*hv
+			self.contents[i].resize(new_x,new_y,new_w,new_h)
+
+
+	def get_dims(self):
+		return self.x, self.y, self.w, self.h
+
+	def add_sub(self,hv = None): # hv allows to partition non-default way if passed
+		new_sub = Container(self,-1,-1,-1,-1)
+#		self.parent.add_container(new_sub)
+		self.add_container(new_sub) # wrong
+		self.reflow(hv)
+		return self.contents
 
 	def add_container(self,container):
 		self.contents.append(container)
@@ -135,7 +143,11 @@ class Workspace():
 
 	def add_container(self,container=None,where=-1,hv=0): # adds a window and tiles it, with the possiblity of tiling in new creative way : )
 		if container is None:
-			self.containers[where].add_sub(hv)
+			new_cons = self.containers[where].add_sub(hv)
+			print(*new_cons)
+			# update containers to include all deepest ones
+			self.containers.append(*new_cons)
+			#self.containers = self.containers[:where].append(new_cons).append(self.containers[where:])
 		else:
 			self.containers.append(container)
 		
@@ -151,7 +163,7 @@ if __name__=='__main__':
 	
 	testworkspace.add_container()
 	print(testworkspace)	
-	for _ in range(2):
+	for _ in range(1):
 		testworkspace.add_container(hv=1)
 		print(testworkspace)	
 
