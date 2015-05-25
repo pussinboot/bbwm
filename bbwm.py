@@ -72,23 +72,35 @@ class Container():
 		self.window = window
 
 	def resize(self, x, y, w, h): 
+		#print("resizing from {0},{1},{2},{3} to {4},{5},{6},{7}".format(self.x, self.y, self.w, self.h , x, y, w, h))
 		self.x, self.y, self.w, self.h  = x, y, w, h
 
 	def reflow(self,hv = None):
 		if hv is None: hv = self.hv
 		if self.r == 1:
 			new_r = len(self) 
-		else: # not sure if this will work correctly
-			new_r = self.r
+		else: 
+			if len(self) != 1:
+				new_r = self.r
+			else:
+				new_r = 1
 		if hv == 0:
 			new_w, new_h = self.w // new_r, self.h
+			new_x, new_y = self.x + self.w,self.y
 		else:
 			new_w, new_h = self.w, self.h // new_r
-		for i in range(self.__len__()):
+			new_x, new_y = self.x,self.y + self.h
+
+		neww_w, neww_h = new_w, new_h
+		
+		for i in reversed(range(self.__len__())):
 			# resize all subcontainers according to split ratio
-			new_x = self.x + i*new_w*(1-hv)
-			new_y = self.y + i*new_h*hv
-			self.contents[i].resize(new_x,new_y,new_w,new_h)
+			new_x -= new_w * (1-hv)
+			new_y -= new_h * hv
+			self.contents[i].resize(new_x,new_y,neww_w,neww_h)
+			neww_w = self.w - new_w * (1-hv)
+			neww_h = self.h - new_h * hv
+			# first part is subtract new part
 
 
 	def get_dims(self):
@@ -136,7 +148,7 @@ class Workspace():
 		self.n = n
 		self.W, self.H = W, H
 		self.p_style = DEFAULT_PARTITION
-		self.main_container = Container(self,0,0,W,H)
+		self.main_container = Container(self,0,0,W,H,r=3)
 		self.main_container.add_sub(0)
 		self.traverse = self.main_container.traverse_container
 
@@ -165,7 +177,10 @@ class Workspace():
 		for j in range(h):
 			for i in range(w):
 				#print(x+i,y+j)
-				a[y+j][x+i] = n
+				try:
+					a[y+j][x+i] = n
+				except:
+					print('{2} is out of range at ({0},{1})'.format(y+j,x+i,n))
 		return a
 
 	def add_container(self,p=True,where=-1,hv=0): # adds a window and tiles it, with the possiblity of tiling in new creative way : )
@@ -180,7 +195,7 @@ if __name__=='__main__':
 	#print(testwin)
 
 	testworkspace = Workspace(1,12,6)
-	print(testworkspace)
+	#print(testworkspace)
 
 	testcontainer = Container(testworkspace,0,0,6,3)
 	#print(testcontainer.get_dims())
@@ -192,14 +207,17 @@ if __name__=='__main__':
 	#	print(testworkspace)
 
 	testworkspace.add_container(where=0)
-	print(testworkspace)
+	#print(testworkspace)
+	#testworkspace.add_container(where=0)
+	#print(testworkspace)
 	testworkspace.add_container(p=False,where=1,hv=1)
-	print(testworkspace)	
+	#print(testworkspace)	
 	testworkspace.add_container(p=True,where=1,hv=1)
-	print(testworkspace)	
+	#print(testworkspace)	
 	testworkspace.add_container(p=False,where=3,hv=0)
-	print(testworkspace)
+	#print(testworkspace)
 	testworkspace.add_container(p=False,where=4,hv=1)
+	# dont do something like this
 	print(testworkspace)
 
 #####################################################
@@ -207,12 +225,12 @@ if __name__=='__main__':
 # Sweet, it works
 #
 # Workspace #1 W: 12 H: 6
-# 000000111111
-# 000000111111
-# 000000222222
-# 000000222222
-# 000000333444
-# 000000333555
+# 000000001111
+# 000000001111
+# 000000002222
+# 000000002222
+# 000000003344
+# 000000003355
 # ------------
 # 0 - container @(0,0) w: 6 h: 6
 # 1 - container @(6,0) w: 6 h: 2
