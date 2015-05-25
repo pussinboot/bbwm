@@ -48,6 +48,7 @@ class Container():
 		# hv is either 0 or 1, r is any positive rational number :^) 
 		self.parent = parent # the workspace
 		self.contents = []
+		self.window = None
 		self.x, self.y, self.w, self.h = x, y, w, h
 		self.hv, self.r = hv, r
 		self.index = 0
@@ -63,19 +64,26 @@ class Container():
 	def __len__(self):
 		return len(self.contents)
 
+	def is_empty(self):
+		return self.contents == []
+
+	def add_window(self,window):
+		window.resize(self.x,self.y,self.w,self.h)
+		self.window = window
+
 	def resize(self, x, y, w, h): 
 		self.x, self.y, self.w, self.h  = x, y, w, h
 
 	def reflow(self,hv = None):
 		if hv is None: hv = self.hv
 		if self.r == 1:
-			new_r = len(self)
+			new_r = len(self) 
 		else: # not sure if this will work correctly
 			new_r = self.r
 		if hv == 0:
-			new_w, new_h = self.w - self.w // new_r, self.h
+			new_w, new_h = self.w // new_r, self.h
 		else:
-			new_w, new_h = self.w, self.h - self.h // new_r
+			new_w, new_h = self.w, self.h // new_r
 		for i in range(self.__len__()):
 			# resize all subcontainers according to split ratio
 			new_x = self.x + i*new_w*(1-hv)
@@ -86,16 +94,36 @@ class Container():
 	def get_dims(self):
 		return self.x, self.y, self.w, self.h
 
+	def get_parent(self):
+		return self.parent
+
 	def add_sub(self,hv = None): # hv allows to partition non-default way if passed
 		new_sub = Container(self,-1,-1,-1,-1)
 #		self.parent.add_container(new_sub)
-		self.add_container(new_sub) # wrong
+		self.contents.append(new_sub)
 		self.reflow(hv)
 		return self.contents
+
+	def p_add_sub(self,hv = None): #you're becoming a new parent
+		if not self.is_empty():
+			self.add_sub(hv)
+		else:
+			self.add_sub(hv)
+			self.add_sub(hv)
 
 	def add_container(self,container):
 		self.contents.append(container)
 
+	def traverse_container(self,contents=None):
+		if contents is None: contents = self.contents
+		tor = []
+		for c in contents:
+			if c.is_empty():
+				#print(c.__str__())
+				tor.append(c)
+			else:
+				tor.extend(self.traverse_container(c))
+		return tor
 
 
 class Workspace():
@@ -109,29 +137,28 @@ class Workspace():
 		self.W, self.H = W, H
 		self.p_style = DEFAULT_PARTITION
 		self.main_container = Container(self,0,0,W,H)
-		self.containers = [self.main_container] # first version will do everything with arrays because they are ez, will see about more efficient structures later
+		self.main_container.add_sub(0)
+		self.traverse = self.main_container.traverse_container
 
 	def __str__(self):
 		tor = "Workspace #{0} W: {1} H: {2}".format(self.n,self.W,self.H) + "\n"
 		tempa = [[0 for x in range(self.W)] for x in range(self.H)] 
 		foot = "-"*self.W+"\n"
 		ci = 0
-		for c in self.containers:
+		for c in self.traverse():
 			foot += str(ci) + " - " + c.__str__() + "\n"
 			tempa = self.draw_help(tempa,c,ci)
 			ci += 1
-			for sc in c:
-				foot += "-> " + str(ci) + " - " + sc.__str__() + "\n"
-				tempa = self.draw_help(tempa,sc,ci)
-				ci += 1
+
 		for j in range(self.H):
 			for i in range(self.W):
 				tor = tor + str(tempa[j][i])
 			tor = tor + "\n"
+
 		return tor + foot
 
 	def __len__(self):
-		return len(self.containers)
+		return len(self.traverse())
 
 	def draw_help(self,a,c,n):
 		x,y,w,h = c.get_dims()
@@ -141,15 +168,12 @@ class Workspace():
 				a[y+j][x+i] = n
 		return a
 
-	def add_container(self,container=None,where=-1,hv=0): # adds a window and tiles it, with the possiblity of tiling in new creative way : )
-		if container is None:
-			new_cons = self.containers[where].add_sub(hv)
-			print(*new_cons)
-			# update containers to include all deepest ones
-			self.containers.append(*new_cons)
-			#self.containers = self.containers[:where].append(new_cons).append(self.containers[where:])
+	def add_container(self,p=True,where=-1,hv=0): # adds a window and tiles it, with the possiblity of tiling in new creative way : )
+		t = self.traverse()
+		if p:
+			t[where].get_parent().add_sub(hv)
 		else:
-			self.containers.append(container)
+			t[where].p_add_sub(hv)
 		
 if __name__=='__main__':
 	testwin = Window("lol",1,2,3,4)
@@ -161,11 +185,38 @@ if __name__=='__main__':
 	testcontainer = Container(testworkspace,0,0,6,3)
 	#print(testcontainer.get_dims())
 	
-	testworkspace.add_container()
-	print(testworkspace)	
-	for _ in range(1):
-		testworkspace.add_container(hv=1)
-		print(testworkspace)	
+	#testworkspace.add_container()
+	#print(testworkspace)	
+	#for i in range(2):
+	#	testworkspace.add_container(where=-1,hv=i)
+	#	print(testworkspace)
 
-# need to actually figure out structure of how things subcontain and also add a call to correctly resize everything else in a subcontainer
-# new containers are added to the wrong place because parent is not being used correctly, things arent being subcontained right p much
+	testworkspace.add_container(where=0)
+	print(testworkspace)
+	testworkspace.add_container(p=False,where=1,hv=1)
+	print(testworkspace)	
+	testworkspace.add_container(p=True,where=1,hv=1)
+	print(testworkspace)	
+	testworkspace.add_container(p=False,where=3,hv=0)
+	print(testworkspace)
+	testworkspace.add_container(p=False,where=4,hv=1)
+	print(testworkspace)
+
+#####################################################
+#
+# Sweet, it works
+#
+# Workspace #1 W: 12 H: 6
+# 000000111111
+# 000000111111
+# 000000222222
+# 000000222222
+# 000000333444
+# 000000333555
+# ------------
+# 0 - container @(0,0) w: 6 h: 6
+# 1 - container @(6,0) w: 6 h: 2
+# 2 - container @(6,2) w: 6 h: 2
+# 3 - container @(6,4) w: 3 h: 2
+# 4 - container @(9,4) w: 3 h: 1
+# 5 - container @(9,5) w: 3 h: 1
