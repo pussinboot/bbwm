@@ -109,19 +109,19 @@ class Container():
 	def get_parent(self):
 		return self.parent
 
-	def add_sub(self,hv = None): # hv allows to partition non-default way if passed
-		new_sub = Container(self,-1,-1,-1,-1)
+	def add_sub(self,hv = None,hvn=0,r=1): # hv allows to partition non-default way if passed
+		new_sub = Container(self,-1,-1,-1,-1,hvn,r)
 #		self.parent.add_container(new_sub)
 		self.contents.append(new_sub)
 		self.reflow(hv)
 		return self.contents
 
-	def p_add_sub(self,hv = None): #you're becoming a new parent
+	def p_add_sub(self,hv = None,hvn=0,r=1): #you're becoming a new parent
 		if not self.is_empty():
-			self.add_sub(hv)
+			self.add_sub(hv,hvn,r)
 		else:
-			self.add_sub(hv)
-			self.add_sub(hv)
+			self.add_sub(hv,hvn,r)
+			self.add_sub(hv,hvn,r)
 
 	def add_container(self,container):
 		self.contents.append(container)
@@ -151,6 +151,7 @@ class Workspace():
 		self.main_container = Container(self,0,0,W,H,r=3)
 		self.main_container.add_sub(0)
 		self.traverse = self.main_container.traverse_container
+		self.style = PartitionStyle()
 
 	def __str__(self):
 		tor = "Workspace #{0} W: {1} H: {2}".format(self.n,self.W,self.H) + "\n"
@@ -183,13 +184,40 @@ class Workspace():
 					print('{2} is out of range at ({0},{1})'.format(y+j,x+i,n))
 		return a
 
-	def add_container(self,p=True,where=-1,hv=0): # adds a window and tiles it, with the possiblity of tiling in new creative way : )
+	def add_container(self,p=True,where=-1,hv=None,hvn=0,r=1): # adds a window and tiles it, with the possiblity of tiling in new creative way : )
 		t = self.traverse()
 		if p:
-			t[where].get_parent().add_sub(hv)
+			t[where].get_parent().add_sub(hv,hvn,r)
 		else:
-			t[where].p_add_sub(hv)
-		
+			t[where].p_add_sub(hv,hvn,r)
+
+	def add_next(self):
+		p, hv, rn = self.style.get_next()
+		self.add_container(p,-1,hvn=hv,r=rn)
+
+class PartitionStyle():
+	"""
+	used to represent a method of styling
+	basically contains p, hv, and r for certain levels
+	"""
+	def __init__(self,style=None):
+		if style is None: # default style
+			self.style = [[True,0,3],[False,1,1]] # rStack for ex
+		else:
+			self.style = style
+		self.index = 0
+
+	def get_next(self):
+		try:
+			tor = self.style[self.index]
+			self.index += 1
+		except:
+			tor = self.style[-1]
+		return tor
+
+
+
+
 if __name__=='__main__':
 	testwin = Window("lol",1,2,3,4)
 	#print(testwin)
@@ -206,19 +234,23 @@ if __name__=='__main__':
 	#	testworkspace.add_container(where=-1,hv=i)
 	#	print(testworkspace)
 
-	testworkspace.add_container(where=0)
-	#print(testworkspace)
 	#testworkspace.add_container(where=0)
+	##print(testworkspace)
+	##testworkspace.add_container(where=0)
+	##print(testworkspace)
+	#testworkspace.add_container(p=False,where=1,hv=1)
+	##print(testworkspace)	
+	#testworkspace.add_container(p=True,where=1,hv=1)
+	##print(testworkspace)	
+	#testworkspace.add_container(p=False,where=3,hv=0)
+	##print(testworkspace)
+	#testworkspace.add_container(p=False,where=4,hv=1)
+	# dont do something like this - testworkspace.add_container(p=True,where=0,hv=1)
 	#print(testworkspace)
-	testworkspace.add_container(p=False,where=1,hv=1)
-	#print(testworkspace)	
-	testworkspace.add_container(p=True,where=1,hv=1)
-	#print(testworkspace)	
-	testworkspace.add_container(p=False,where=3,hv=0)
-	#print(testworkspace)
-	testworkspace.add_container(p=False,where=4,hv=1)
-	# dont do something like this
+	testworkspace.add_next()
 	print(testworkspace)
+	testworkspace.add_next()
+	print(testworkspace) # sad horns play
 
 #####################################################
 #
