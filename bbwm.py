@@ -6,267 +6,417 @@
 # |_.__/|_.__/ \_/\_/ |_| |_| |_|
 # 
 # blackbox tiling wm
-# will interface with pahk "soon"
 
-# globals (load from config file eventually)
+import tkinter as tk
+import keyboard
+import win32con, win32gui
 
-DEFAULT_PARTITION = "lol" # partitions will be a cool data type that represent the tiling "style"
-# specify the major partitioning/ratios and a default subpartitioning method
-# ex
-# [[(h, 3)] (v, 1)] # h = 0, v = 1
-# first window takes up whole screen
-# second window takes up rightmost third of screen ()
-# subsequent windows evenly split the rightmost third in height
+OFF_SCREEN = 25
+BORDER_OFFSET = 50
+INNER_SPACING = 20
 
-class Window():
-	"""
-	used to represent a window
-	attributes include - top positions for x & y, width, height, current workspace, current monitor, win32 handle
-	"""
-	# make the window object when a window is going to be tiled for the first time
-	def __init__(self,handle,x=-1,y=-1,w=-1,h=-1): 
+class Box():
+	def __init__(self,parent,index,x,y,w,h,handle=None):
+		self.parent = parent
+		self.index = index
+		self.children = None
 		self.handle = handle
-		self.x, self.y, self.w, self.h  = x, y, w, h
-
-	def __str__(self):
-		return self.handle + " @({0},{1}) w: {2} h: {3}".format(self.x, self.y, self.w, self.h)
-
-	def resize(self, x, y, w, h): 
-		self.x, self.y, self.w, self.h  = x, y, w, h
-
-# reason for seperate containers and windows is in case where you want to have one window take up the space you usually would've gotten if you reflowed once more
-# aka in standard ex if you had 3 windows, 1 on 2/3rd left, 2 & 3 each taking up half of the remaining third, if you wanted 3 to take up 2/3rd of the third
-
-class Container():
-	"""
-	each container is a rectangle of screen space
-	also specifies how next container will be partitioned
-	"""
-
-	def __init__(self,parent,x,y,w,h,hv=0,r=1): 
-		# vh - default split for new containers (0 for horizontal 1 for vertical, r - ratio of split
-		# hv is either 0 or 1, r is any positive rational number :^) 
-		self.parent = parent # the workspace
-		self.contents = []
-		self.window = None
-		self.x, self.y, self.w, self.h = x, y, w, h
-		self.hv, self.r = hv, r
-		self.index = 0
-
-	def __str__(self):
-		tor = "container @({0},{1}) w: {2} h: {3}".format(self.x, self.y, self.w, self.h)
-		return tor
+		self.x, self.y, self.w, self.h = x,y,w,h
 
 	def __iter__(self):
-		for sc in self.contents:
-			yield sc
-
-	def __len__(self):
-		return len(self.contents)
-
-	def is_empty(self):
-		return self.contents == []
-
-	def add_window(self,window):
-		window.resize(self.x,self.y,self.w,self.h)
-		self.window = window
-
-	def resize(self, x, y, w, h): 
-		#print("resizing from {0},{1},{2},{3} to {4},{5},{6},{7}".format(self.x, self.y, self.w, self.h , x, y, w, h))
-		self.x, self.y, self.w, self.h  = x, y, w, h
-
-	def reflow(self,hv = None):
-		if hv is None: hv = self.hv
-		if self.r == 1:
-			new_r = len(self) 
-		else: 
-			if len(self) != 1:
-				new_r = self.r
-			else:
-				new_r = 1
-		if hv == 0:
-			new_w, new_h = self.w // new_r, self.h
-			new_x, new_y = self.x + self.w,self.y
+		if not self.is_empty:
+			for b in self.children:
+				yield b
 		else:
-			new_w, new_h = self.w, self.h // new_r
-			new_x, new_y = self.x,self.y + self.h
+			yield self
 
-		neww_w, neww_h = new_w, new_h
-		
-		for i in reversed(range(self.__len__())):
-			# resize all subcontainers according to split ratio
-			new_x -= new_w * (1-hv)
-			new_y -= new_h * hv
-			self.contents[i].resize(new_x,new_y,neww_w,neww_h)
-			neww_w = self.w - new_w * (1-hv)
-			neww_h = self.h - new_h * hv
-			# first part is subtract new part
+	def __str__(self):
+		return 'box @ ({:4d},{:4d})      w: {:4d} h: {:4d}    {}'.format(self.x,self.y,self.w,self.h,self.handle)
 
+	@property
+	def is_empty(self):
+		return self.children is None
 
 	def get_dims(self):
 		return self.x, self.y, self.w, self.h
 
-	def get_parent(self):
-		return self.parent
+	def split(self,dim,length,r=0.5):
+		# returns new coords along a certain direction
+		# so in horizontal case, supply with x and w
+		# r = 0.5 by default, returns x1 w1, x2 w2
+		d1, d2 = dim, dim + int(r*length) + INNER_SPACING
+		w1 = int(length * r) - INNER_SPACING
+		w2 = int(length * (1-r)) - INNER_SPACING
+		return [(d1,w1),(d2,w2)]
 
-	def add_sub(self,hv = None,hvn=0,r=1): # hv allows to partition non-default way if passed
-		new_sub = Container(self,-1,-1,-1,-1,hvn,r)
-#		self.parent.add_container(new_sub)
-		self.contents.append(new_sub)
-		self.reflow(hv)
-		return self.contents
+	def split_h(self,r=0.5):
+		child_dims = self.split(self.x,self.w,r)
+		c1 = Box(self,0,child_dims[0][0],self.y,child_dims[0][1],self.h)
+		c1.handle = self.handle
+		c2 = Box(self,1,child_dims[1][0],self.y,child_dims[1][1],self.h)
+		self.children = [c1,c2]
+		self.handle = None
 
-	def p_add_sub(self,hv = None,hvn=0,r=1): #you're becoming a new parent
-		if not self.is_empty():
-			self.add_sub(hv,hvn,r)
-		else:
-			self.add_sub(hv,hvn,r)
-			self.add_sub(hv,hvn,r)
-
-	def add_container(self,container):
-		self.contents.append(container)
-
-	def traverse_container(self,contents=None):
-		if contents is None: contents = self.contents
-		tor = []
-		for c in contents:
-			if c.is_empty():
-				#print(c.__str__())
-				tor.append(c)
-			else:
-				tor.extend(self.traverse_container(c))
-		return tor
-
+	def split_v(self,r=0.5):
+		child_dims = self.split(self.y,self.h,r)
+		c1 = Box(self,0,self.x,child_dims[0][0],self.w,child_dims[0][1])
+		c1.handle = self.handle
+		c2 = Box(self,1,self.x,child_dims[1][0],self.w,child_dims[1][1])
+		self.children = [c1,c2]
+		self.handle = None
 
 class Workspace():
-	"""
-	used to represent a virtual screen
-	contains windows in set positions that can be moved around
-	attributes include - max height, max width, number, partition style
-	"""
-	def __init__(self,n,W,H):
+	def __init__(self,n,W,H,daddy):
+		self.dad = daddy
 		self.n = n
-		self.W, self.H = W, H
-		self.p_style = DEFAULT_PARTITION
-		self.main_container = Container(self,0,0,W,H,r=3)
-		self.main_container.add_sub(0)
-		self.traverse = self.main_container.traverse_container
-		self.style = PartitionStyle()
+		self.total_width, self.total_height = W, H
+
+		self.top_box = Box(None,0,0,0,W,H)
+		self.current_box = self.top_box
+
+		self.max_truth = [[self.top_box]]
+		self.cur_ind = [0,0]
+
+		self.win_api = WindowsInterface()
+		
+		self.tiling_scheme = self.default_scheme
+		self.tiling_scheme_count = -1
 
 	def __str__(self):
-		tor = "Workspace #{0} W: {1} H: {2}".format(self.n,self.W,self.H) + "\n"
-		tempa = [[0 for x in range(self.W)] for x in range(self.H)] 
-		foot = "-"*self.W+"\n"
-		ci = 0
-		for c in self.traverse():
-			foot += str(ci) + " - " + c.__str__() + "\n"
-			tempa = self.draw_help(tempa,c,ci)
-			ci += 1
+		all_boxes = self.traverse()
+		all_rows = []
+		for r in range(len(self.max_truth)):
+			row = ''
+			for c in range(len(self.max_truth[0])):
+				box = self.max_truth[r][c]
+				if box in all_boxes:
+					if [r,c] == self.cur_ind:
+						row += '[{:2d}] '.format(all_boxes.index(box))
+					else:
+						row += ' {:2d}  '.format(all_boxes.index(box))
+				else:
+					row += ' __  '
+			all_rows.append(row)
+		return '\n'.join(all_rows)
 
-		for j in range(self.H):
-			for i in range(self.W):
-				tor = tor + str(tempa[j][i])
-			tor = tor + "\n"
-
-		return tor + foot
-
-	def __len__(self):
-		return len(self.traverse())
-
-	def draw_help(self,a,c,n):
-		x,y,w,h = c.get_dims()
-		for j in range(h):
-			for i in range(w):
-				#print(x+i,y+j)
-				try:
-					a[y+j][x+i] = n
-				except:
-					print('{2} is out of range at ({0},{1})'.format(y+j,x+i,n))
-		return a
-
-	def add_container(self,p=True,where=-1,hv=None,hvn=0,r=1): # adds a window and tiles it, with the possiblity of tiling in new creative way : )
-		t = self.traverse()
-		if p:
-			t[where].get_parent().add_sub(hv,hvn,r)
-		else:
-			t[where].p_add_sub(hv,hvn,r)
-
-	def add_next(self):
-		p, hv, rn = self.style.get_next()
-		self.add_container(p,-1,hvn=hv,r=rn)
-
-class PartitionStyle():
-	"""
-	used to represent a method of styling
-	basically contains p, hv, and r for certain levels
-	"""
-	def __init__(self,style=None):
-		if style is None: # default style
-			self.style = [[True,0,3],[False,1,1]] # rStack for ex
-		else:
-			self.style = style
-		self.index = 0
-
-	def get_next(self):
-		try:
-			tor = self.style[self.index]
-			self.index += 1
-		except:
-			tor = self.style[-1]
+	def traverse(self,box=None):
+		if box is None: box = self.top_box
+		tor = []
+		for b in box:
+			if b.is_empty:
+				tor.append(b)
+			else:
+				tor.extend(self.traverse(b))
 		return tor
 
+	def find_all(self,child):
+		# returns all r,c indices of the child
+		tor_r,tor_c = [],[]
+		for r in range(len(self.max_truth)):
+			for c in range(len(self.max_truth[0])):
+				if self.max_truth[r][c] == child:
+					tor_r.append(r)
+					tor_c.append(c)
+		return tor_r, tor_c
+
+	def default_scheme(self):
+		if self.tiling_scheme_count < 0:
+			tor = lambda : 1+1
+		elif self.tiling_scheme_count == 0:
+			tor = lambda : self.split_h(0.67)
+		else:
+			tor = lambda : self.split_v()
+		self.tiling_scheme_count += 1
+		return tor
+
+	def split_h(self,r=0.5):
+		self.current_box.split_h(r)
+		cur_r, cur_c = self.cur_ind
+		# go through all the rows and duplicate whatever is in the current column
+		for r in range(len(self.max_truth)):
+			self.max_truth[r].insert(cur_c+1,self.max_truth[r][cur_c])
+		# then substitute new elements
+		find_r, find_c = self.find_all(self.current_box)
+		for i in range(len(find_r)):
+			if find_c[i] == max(find_c):
+				self.max_truth[find_r[i]][find_c[i]] = self.current_box.children[1]
+			else:
+				self.max_truth[find_r[i]][find_c[i]] = self.current_box.children[0]
+		self.go_in()
+		self.go_side()
+
+	def split_v(self,r=0.5):
+		self.current_box.split_v(r)
+		cur_r, cur_c = self.cur_ind
+		# insert new row
+		self.max_truth.insert(cur_r+1,[self.max_truth[cur_r][c] for c in range(len(self.max_truth[0]))])
+		# then substitute new elements
+		find_r, find_c = self.find_all(self.current_box)
+		for i in range(len(find_r)):
+			if find_r[i] == max(find_r):
+				self.max_truth[find_r[i]][find_c[i]] = self.current_box.children[1]
+			else:
+				self.max_truth[find_r[i]][find_c[i]] = self.current_box.children[0]
+		self.go_in()
+		self.go_side()
+
+
+	def delet_this(self):
+		p_box = self.current_box.parent
+		if p_box is None: return
+		new_box = p_box.children[1 - self.current_box.index]
+
+		for c in p_box.children:
+			find_r, find_c = self.find_all(c)
+			for i in range(len(find_r)):
+				self.max_truth[find_r[i]][find_c[i]] = p_box
+
+		p_box.children = new_box.children
+		p_box.handle = new_box.handle
+		new_box.handle = None
+		if not p_box.is_empty:
+			for c in new_box.children:
+				c.parent = p_box
+
+		self.current_box = p_box
+
+	def tile_window(self):
+		# if self.current_box.handle is None:
+		new_handle = self.win_api.get_current_win(True)
+		next_tiling_action = self.tiling_scheme()
+		next_tiling_action()
+		self.current_box.handle = new_handle
+		# self.win_api.remove_crap(self.current_box.handle)
+
+		# self.move_window(self.current_box)
+		traversal = self.traverse()
+		for b in traversal:
+			print(b)
+			self.move_window(b)
+		self.dad.draw_current_state()
+
+	def untile_window(self):
+		if self.current_box.handle is not None:
+			self.win_api.add_crap_back(self.current_box.handle)
+			self.win_api.return_to_og(self.current_box.handle)
+		self.current_box.handle = None
+		self.delet_this()
+		self.tiling_scheme_count -= 1
+		self.tiling_scheme_count = max(-1,self.tiling_scheme_count)
+		traversal = self.traverse()
+		for b in traversal:
+			print(b)
+			self.move_window(b)
+		self.dad.draw_current_state()
+
+
+	def move_window(self,box):
+		if box.handle is None: return
+		print('moving', box.handle)
+		x,y,w,h = box.get_dims()
+		x = x + BORDER_OFFSET
+		y = y + BORDER_OFFSET
+		self.win_api.move_win(box.handle,x,y,w,h)
+
+	## navigation.. kinda makes sense if you think of traversal up down left right whatever
+	# as being kinda in order of when things were created 
+
+	def go_ud(self,ud):
+		col_len = len(self.max_truth)
+		to_check = [(self.cur_ind[0] + ud*i)%col_len for i in range(1,col_len)]
+		filt = [i for i in to_check if self.max_truth[i][self.cur_ind[1]] != self.current_box and\
+		 		self.max_truth[i][self.cur_ind[1]].is_empty]
+		if len(filt) > 0:
+			self.cur_ind[0] = filt[0]
+			self.current_box = self.max_truth[self.cur_ind[0]][self.cur_ind[1]]
+			self.dad.draw_current_state()
+			if self.current_box.handle is not None:
+				self.win_api.focus_win(self.current_box.handle)
+
+	def go_lr(self,lr):
+		row_len = len(self.max_truth[self.cur_ind[0]])
+		to_check = [(self.cur_ind[1] + lr*i)%row_len for i in range(1,row_len)]
+		filt = [i for i in to_check if self.max_truth[self.cur_ind[0]][i] != self.current_box and\
+		 		self.max_truth[self.cur_ind[0]][i].is_empty]
+		if len(filt) > 0:
+			self.cur_ind[1] = filt[0]
+			self.current_box = self.max_truth[self.cur_ind[0]][self.cur_ind[1]]
+			self.dad.draw_current_state()
+			if self.current_box.handle is not None:
+				self.win_api.focus_win(self.current_box.handle)
+
+
+	def go_up(self):
+		self.go_ud(-1)
+	def go_down(self):
+		self.go_ud( 1)
+	def go_left(self):
+		self.go_lr(-1)
+	def go_right(self):
+		self.go_lr( 1)
+
+	def go_out(self):
+		if self.current_box.parent is not None:
+			self.current_box = self.current_box.parent
+			# print('you went out to',self.current_box)
+
+	def go_in(self):
+		if not self.current_box.is_empty:
+			self.current_box = self.current_box.children[0]
+			# print('you went in to',self.current_box)
+
+	def go_side(self):
+		if self.current_box.parent is not None:
+			self.current_box = self.current_box.parent.children[1 - self.current_box.index]
+			# print('you went l/r to',self.current_box)
+class ScreenDraw():
+	def __init__(self,root):
+		self.root = root
+		self.max_width, self.max_height = root.winfo_screenwidth(), root.winfo_screenheight()
+		w, h, x, y = self.max_width + 2*OFF_SCREEN, self.max_height + 2*OFF_SCREEN, -OFF_SCREEN, -OFF_SCREEN
+		root.geometry('%dx%d+%d+%d' % (w, h, x, y))
+		self.max_width, self.max_height = self.max_width - BORDER_OFFSET - 2*OFF_SCREEN, self.max_height - BORDER_OFFSET - 2*OFF_SCREEN
+
+		self.canvas = tk.Canvas(root,width=w,height=h,bg="blue")
+		self.canvas.pack()
+
+		self.current_drawings = []
+
+		self.workspace = Workspace(1,self.max_width,self.max_height,self)
+
+		# self.draw_border(0,0,self.max_width//2-BORDER_OFFSET//2,self.max_height)
+		# self.draw_border(self.max_width//2+BORDER_OFFSET//2,0,self.max_width//2-BORDER_OFFSET//2,self.max_height)
 
 
 
-if __name__=='__main__':
-	testwin = Window("lol",1,2,3,4)
-	#print(testwin)
+	def draw_border(self,left_x,top_y,w,h,current):
+		if current:
+			outline = 'gray'
+		else:
+			outline = 'black'
+		left_x, top_y = OFF_SCREEN + BORDER_OFFSET + left_x, OFF_SCREEN + BORDER_OFFSET + top_y
+		nr = self.canvas.create_rectangle(left_x, top_y, left_x + w, top_y + h,tags="border",
+										  outline=outline,width=5)#, fill='gray',stipple='gray12')
+		self.current_drawings.append(nr)
 
-	testworkspace = Workspace(1,12,6)
-	#print(testworkspace)
+	def clear_screen(self):
+		for cd in self.current_drawings:
+			self.canvas.delete(cd)
 
-	testcontainer = Container(testworkspace,0,0,6,3)
-	#print(testcontainer.get_dims())
-	
-	#testworkspace.add_container()
-	#print(testworkspace)	
-	#for i in range(2):
-	#	testworkspace.add_container(where=-1,hv=i)
-	#	print(testworkspace)
+	def draw_current_state(self):
+		bbbbb = '=' * 5 * len(self.workspace.max_truth[0])
+		print(bbbbb)
+		print(self.workspace)
+		# print(len(self.workspace.max_truth))
+		# print(len(self.workspace.max_truth[0]))
+		self.clear_screen()
+		for b in self.workspace.traverse():
+			# print(b)
+			x,y,w,h = b.get_dims()
+			self.draw_border(x,y,w,h,b==self.workspace.current_box)
+		# x,y,w,h = self.workspace.current_box.get_dims()	
+		# self.draw_border(x,y,w,h,True)
+		self.root.after(1000,self.clear_screen)
 
-	#testworkspace.add_container(where=0)
-	##print(testworkspace)
-	##testworkspace.add_container(where=0)
-	##print(testworkspace)
-	#testworkspace.add_container(p=False,where=1,hv=1)
-	##print(testworkspace)	
-	#testworkspace.add_container(p=True,where=1,hv=1)
-	##print(testworkspace)	
-	#testworkspace.add_container(p=False,where=3,hv=0)
-	##print(testworkspace)
-	#testworkspace.add_container(p=False,where=4,hv=1)
-	# dont do something like this - testworkspace.add_container(p=True,where=0,hv=1)
-	#print(testworkspace)
-	testworkspace.add_next()
-	print(testworkspace)
-	testworkspace.add_next()
-	print(testworkspace) # sad horns play
+class WindowsInterface():
+	def __init__(self):
+		self.backup_positions = {}
 
-#####################################################
-#
-# Sweet, it works
-#
-# Workspace #1 W: 12 H: 6
-# 000000001111
-# 000000001111
-# 000000002222
-# 000000002222
-# 000000003344
-# 000000003355
-# ------------
-# 0 - container @(0,0) w: 6 h: 6
-# 1 - container @(6,0) w: 6 h: 2
-# 2 - container @(6,2) w: 6 h: 2
-# 3 - container @(6,4) w: 3 h: 2
-# 4 - container @(9,4) w: 3 h: 1
-# 5 - container @(9,5) w: 3 h: 1
+	def get_current_win(self,first_time=False):
+		handle = win32gui.GetForegroundWindow()
+		if first_time:
+			l,t,r,b = win32gui.GetWindowRect(handle)
+			x,y,w,h = l, t, r-l, b-t
+			self.backup_positions[str(handle)] = [x,y,w,h]
+		return handle
+
+	def focus_win(self,handle):
+		try:
+			win32gui.SetForegroundWindow(handle)
+		except:
+			pass
+
+	def return_to_og(self,hwnd):
+		if str(hwnd) in self.backup_positions:
+			x,y,w,h = self.backup_positions[str(hwnd)] 
+			win32gui.MoveWindow(hwnd,x,y,w,h,True)	
+
+	def remove_crap(self,hwnd):
+		pass
+		# style = win32gui.GetWindowLong(hwnd, win32con.GWL_STYLE)
+		# style -= win32con.WS_CAPTION 
+		# win32gui.SetWindowLong(hwnd, win32con.GWL_STYLE, style)
+
+	def move_win(self,hwnd,x,y,w,h):
+		win32gui.MoveWindow(hwnd,x,y,w,h,True)
+
+	def add_crap_back(self,hwnd):
+		pass
+		# style = win32gui.GetWindowLong(hwnd, win32con.GWL_STYLE)
+		# style += win32con.WS_CAPTION 
+		# win32gui.SetWindowLong(hwnd, win32con.GWL_STYLE, style)
+
+# hwnd = win32gui.FindWindow(None, 'MilkDrop 2')
+# # ""borderless window""
+# style = win32gui.GetWindowLong(hwnd, win32con.GWL_STYLE)
+# style -= win32con.WS_CAPTION 
+# win32gui.SetWindowLong(hwnd, win32con.GWL_STYLE, style)
+# win32gui.MoveWindow(hwnd,25,25,500,500,True)
+
+def main():
+	root = tk.Tk()
+	root.wm_attributes("-topmost", True)
+	# root.attributes("-toolwindow", 1)
+	# root.wm_attributes("-disabled", True)
+	root.wm_attributes("-transparentcolor", "blue")
+	root.overrideredirect(True)
+	fun = ScreenDraw(root)
+
+	keyboard.add_hotkey('ctrl+alt+space', fun.draw_current_state)
+	keyboard.add_hotkey('ctrl+alt+up', fun.workspace.go_up)
+	keyboard.add_hotkey('ctrl+alt+down', fun.workspace.go_down)
+	keyboard.add_hotkey('ctrl+alt+left', fun.workspace.go_left)
+	keyboard.add_hotkey('ctrl+alt+right', fun.workspace.go_right)
+
+	keyboard.add_hotkey('ctrl+alt+z', fun.workspace.tile_window)
+	keyboard.add_hotkey('ctrl+alt+x', fun.workspace.untile_window)
+	keyboard.add_hotkey('ctrl+alt+a', fun.workspace.split_h)
+	keyboard.add_hotkey('ctrl+alt+s', fun.workspace.split_v)
+	# keyboard.add_hotkey('ctrl+alt+z', fun.workspace.split_h) # tile window h
+	# keyboard.add_hotkey('ctrl+alt+x', fun.workspace.split_v) # tile window v
+	# keyboard.add_hotkey('ctrl+alt+c', fun.workspace.delet_this) # untile window
+
+	# keyboard.add_hotkey('ctrl+alt+x', fun.clear_screen) # untile window
+	keyboard.add_hotkey('ctrl+alt+q', root.destroy)
+	root.mainloop()	
+
+def test_ws():
+	test_ws = Workspace(1,1280,720)
+	# traversal = test_ws.traverse()
+	# print('traverse!!')
+	# for b in traversal:
+	# 	print(b)
+	print(test_ws)
+
+	print('split h!!')
+	test_ws.split_h()
+	# print('traverse!!')
+	# traversal = test_ws.traverse()
+	# for b in traversal:
+	# 	print(b)
+	print(test_ws)
+	print('split v!!')
+	test_ws.split_v()
+	print(test_ws)
+	print('split h!!')
+	test_ws.split_h()
+	print(test_ws)
+	print('split v!!')
+	test_ws.split_v()
+	print(test_ws)
+	print('split h!!')
+	test_ws.split_h()
+	print(test_ws)
+
+if __name__ == '__main__':
+	main()
