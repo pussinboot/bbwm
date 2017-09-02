@@ -13,6 +13,8 @@ class TestDraw:
         self.canvas = tk.Canvas(self.root, width=WIDTH, height=HEIGHT, bg="salmon")
         self.canvas.pack()
 
+        self.cursor = None
+
     def get_bbox(self, dims):
         x, y, w, h = dims.x, dims.y, dims.w, dims.h
         lx, rx = x + self.c.INNER_SPACING_X, x + w - self.c.INNER_SPACING_X
@@ -27,6 +29,23 @@ class TestDraw:
 
         w = max(min(self.c.INNER_SPACING_X, self.c.INNER_SPACING_Y) - 2, 2)
         self.canvas.create_rectangle(self.get_bbox(dims), outline=outline, width=w)
+
+    def draw_fill(self, dims):
+        self.canvas.create_rectangle(self.get_bbox(dims), fill=self.c.FAKE_WIN_COLOR)
+
+
+    def draw_cursor(self, dims):
+        cx, cy = dims.midpoint()
+        r = self.c.CURSOR_SIZE
+        if self.cursor is None:
+            color = self.c.CURSOR_COLOR
+            self.cursor = self.canvas.create_oval(cx - r, cy - r, cx + r, cy + r, fill=color)
+        else:
+            self.canvas.coords(self.cursor, cx - r, cy - r, cx + r, cy + r)
+
+    def clear(self):
+        self.canvas.delete('all')
+        self.cursor = None
 
 
 
