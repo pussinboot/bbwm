@@ -20,7 +20,19 @@ class Workspace:
             tile_scheme = DefaultTilingScheme()
         self.tile_scheme = tile_scheme
 
-        self.partitions = [Partition(None, self.base_dims, self.tile_scheme)]
+        self.partitions = [Partition(None, self.base_dims)]
+        self.cur_part = self.partitions[0]
+
+    def traverse(self, part=None):
+        if part is None:
+            part = self.partitions[0]
+        tor = []
+        for p in part:
+            if p.is_empty:
+                tor.append(p)
+            else:
+                tor.extend(self.traverse(p))
+        return tor
 
 
 class Partition:
@@ -63,7 +75,7 @@ class WinNode:
 
 # tiling logic
 class TileScheme:
-    __metaclass__  = abc.ABCMeta
+    __metaclass__ = abc.ABCMeta
 
     def __init__(self):
         pass
@@ -75,6 +87,7 @@ class TileScheme:
     @abc.abstractmethod
     def untile(self, part):
         return
+
 
 class DefaultTilingScheme(TileScheme):
     def __init__(self):
@@ -91,6 +104,18 @@ class DefaultTilingScheme(TileScheme):
     def untile(self, part):
         self.tile_count = max(0, self.tile_count - 1)
         part.unsplit()
+
+
+# configuration
+class Config:
+    def __init__(self):
+        # inner spacing
+        self.INNER_SPACING_X = 8
+        self.INNER_SPACING_Y = 10
+
+        # colors
+        self.BORDER_HIGHLIGHT_COLOR = 'gray'
+        self.BORDER_COLOR = 'black'
 
 if __name__ == '__main__':
     desktop = Dims(0, 0, 400, 225)
