@@ -24,8 +24,13 @@ class Dims(namedtuple('Dims', ['x', 'y', 'w', 'h'])):
     def midpoint(self):
         return self.x + (self.w // 2), self.y + (self.h // 2)
 
-    def adjacency_check(self, other, d):
-        i = 1 if d == 'v' else 0
+    def distance_to(self, x2, y2):
+        # manhattan dist
+        x1, y1 = self.midpoint()
+
+        return abs(x1 - x2) + abs(y1 - y2)
+
+    def adjacency_check(self, other, i):
         e_s_1 = self[i]
         e_s_2 = self[i] + self[i + 2] + 1
         e_o_1 = other[i]
@@ -53,6 +58,12 @@ class Workspace:
         self.partitions = [Partition(None, self.base_dims)]
         self.cur_part = self.partitions[0]
 
+        # moving around
+        self.go_left = lambda: self._move('h', -1)
+        self.go_right = lambda: self._move('h', 1)
+        self.go_up = lambda: self._move('v', -1)
+        self.go_down = lambda: self._move('v', 1)
+
     def traverse(self, part=None):
         if part is None:
             part = self.partitions[0]
@@ -66,6 +77,8 @@ class Workspace:
 
     def find_neighbors(self, d):
         cp = self.cur_part
+        i = 1 if d == 'v' else 0
+
         # find all partitions that were split in the direction we're looking for
         cands = self.find_splits(d, cp)
         # get all their children
@@ -74,7 +87,12 @@ class Workspace:
             all_p.extend(self.traverse(c))
         all_p = list(set(all_p))
         # now only do ones that touch..
-        fil_p = [p for p in all_p if p.dims.adjacency_check(cp.dims, d)]
+        fil_p = [p for p in all_p if p.dims.adjacency_check(cp.dims, i)]
+        fil_p.append(cp)
+        fil_p = list(set(fil_p))
+
+        # sort them
+        fil_p.sort(key=lambda p: p.dims[i])
         return fil_p
 
     def find_splits(self, d, part=None, found=None):
@@ -87,9 +105,53 @@ class Workspace:
         return self.find_splits(d, part.parent, found)
 
     def tile(self, new_win=None):
-        self.tile_scheme.tile(self.cur_part, new_win)
-        if not self.cur_part.is_empty:
-            self.cur_part = self.cur_part.children[-1]
+        np = self.tile_scheme.tile(self.cur_part, new_win)
+        if np is not None:
+            self.cur_part = np
+
+    def split_h(self, r=0.5, new_win=None):
+        np = self.cur_part.split_h(r, new_win)
+        if np is not None:
+            self.cur_part = np
+
+    def split_v(self, r=0.5, new_win=None):
+        np = self.cur_part.split_v(r, new_win)
+        if np is not None:
+            self.cur_part = np
+
+    def untile(self):
+        cp = self.cur_part
+        if cp.parent is None:
+            return
+        tree = self.traverse(cp.parent)
+        if cp not in tree:
+            return
+        cur_i = tree.index(cp)
+        cp.parent.delete(cp)
+        if cp.parent.is_empty:
+            self.cur_part = cp.parent
+        else:
+            del tree[cur_i]
+            self.cur_part = tree[min(len(tree) - 1, cur_i)]
+
+    def _move(self, d, n):
+        cp = self.cur_part
+        axis = 1 if d == 'v' else 0
+
+        n_ps = self.find_neighbors(d)
+        i = n_ps.index(cp)
+        new_i = i + n
+        if new_i < 0 or new_i >= len(n_ps):
+            return  # no wraparound..
+        # now sort by distance
+        next_ps = n_ps[new_i::n]
+        # want closest to something akin to where we're aiming..
+        x, y = cp.dims.midpoint()
+        x += cp.dims.w * n * (1 - axis)
+        y += cp.dims.h * n * axis
+
+        next_ps.sort(key=lambda p: p.dims.distance_to(x, y))
+        self.cur_part = next_ps[0]
 
 
 class Partition:
@@ -124,6 +186,20 @@ class Partition:
             s = '{}\n\twas split in {} dir'.format(s, self.split_dir)
         return s
 
+    def delete(self, child):
+        if child not in self.children:
+            return
+        self.children.remove(child)
+        if self.is_empty:
+            return
+        if self.parent is None:
+            return
+        # replace urself with your child
+        if len(self.children) == 1:
+            my_ind = self.parent.children.index(self)
+            self.parent.children[my_ind] = self.children[0]
+
+
     def _split(self, d, r, new_win):
         if d == 'h':
             sf = self.dims.split_h
@@ -139,30 +215,15 @@ class Partition:
         # any new window goes into second
         p2 = Partition(self, dim2, d, new_win)
         self.children.extend([p1, p2])
+        if new_win is None:
+            return p1
+        return p2
 
     def split_h(self, r=0.5, new_win=None):
         return self._split('h', r, new_win)
 
     def split_v(self, r=0.5, new_win=None):
         return self._split('v', r, new_win)
-
-    def unsplit(self):
-        pass
-
-    # traversal
-    # if split horizontally then going l/r will go through parents' children
-    # if we reach the end then if the parent was also split 'h' keep going..
-
-    def _go_lr(self, lr):
-
-        pass
-
-    def go_left(self):
-        self._go_lr(-1)
-
-    def go_right(self):
-        self._go_lr(1)
-
 
 
 class WinNode:
@@ -197,10 +258,12 @@ class DefaultTilingScheme(TileScheme):
 
     def tile(self, part, new_win=None):
         if self.tile_count == 0:
-            part.split_h(0.67, new_win)
+            np = part.split_h(0.67, new_win)
         else:
-            part.split_v(0.5, new_win)
-        self.tile_count += 1
+            np = part.split_v(0.5, new_win)
+        if np is not None:
+            self.tile_count += 1
+            return np
 
     def untile(self, part):
         self.tile_count = max(0, self.tile_count - 1)
