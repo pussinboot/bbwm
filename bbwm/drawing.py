@@ -2,15 +2,32 @@ import tkinter as tk
 
 
 class TestDraw:
-    def __init__(self, root):
-        WIDTH, HEIGHT = 400, 225  #16:9
+    def __init__(self, root, base_dims, config):
+        WIDTH, HEIGHT = base_dims.w, base_dims.h
+
+        self.c = config
+
         self.root = root
         self.root.title('bbwm test')
 
         self.canvas = tk.Canvas(self.root, width=WIDTH, height=HEIGHT, bg="salmon")
         self.canvas.pack()
 
-        self.current_drawings = []
+    def get_bbox(self, dims):
+        x, y, w, h = dims.x, dims.y, dims.w, dims.h
+        lx, rx = x + self.c.INNER_SPACING_X, x + w - self.c.INNER_SPACING_X
+        ty, by = y + self.c.INNER_SPACING_Y, y + h - self.c.INNER_SPACING_Y
+        return lx, ty, rx, by
+
+    def draw_border(self, dims, highlight=False):
+        if highlight:
+            outline = self.c.BORDER_HIGHLIGHT_COLOR
+        else:
+            outline = self.c.BORDER_COLOR
+
+        w = max(min(self.c.INNER_SPACING_X, self.c.INNER_SPACING_Y) - 2, 2)
+        self.canvas.create_rectangle(self.get_bbox(dims), outline=outline, width=w)
+
 
 
 class BBDraw:
