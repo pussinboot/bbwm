@@ -12,3 +12,6 @@ like say i have my desktop split in half and want to switch what's on the right 
 this means i need little tabs somewhere to keep track of what windows are where .-.
 
 think... ~functional~
+
+o.. 2 untile u just merge partitions 
+keep all transforms in a chain thing
