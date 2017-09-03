@@ -10,7 +10,7 @@ class TestDraw:
         self.root = root
         self.root.title('bbwm test')
 
-        self.canvas = tk.Canvas(self.root, width=WIDTH, height=HEIGHT, bg="salmon")
+        self.canvas = tk.Canvas(self.root, width=WIDTH, height=HEIGHT, bg="#444")
         self.canvas.pack()
 
         self.cursor = None

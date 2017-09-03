@@ -21,6 +21,18 @@ class Dims(namedtuple('Dims', ['x', 'y', 'w', 'h'])):
         d2 = Dims(self.x, self.y + new_h, self.w, self.h - new_h)
         return d1, d2
 
+    def unsplit_h(self, i, r=0.5):
+        un_r = 1 / r
+        new_w = int(self.w * un_r)
+        new_x = self.x + (i - 1) * int(new_w * r)
+        return Dims(new_x, self.y, new_w, self.h)
+
+    def unsplit_v(self, i, r=0.5):
+        un_r = 1 / r
+        new_h = int(self.h * un_r)
+        new_y = self.y + (i - 1) * int(new_h * r)
+        return Dims(self.x, new_y, self.w, new_h)
+
     def midpoint(self):
         return self.x + (self.w // 2), self.y + (self.h // 2)
 
@@ -75,6 +87,15 @@ class Workspace:
                 tor.extend(self.traverse(p))
         return tor
 
+    def full_traversal(self, part=None):
+        if part is None:
+            part = self.partitions[0]
+        tor = []
+        for p in part:
+            tor.append(p)
+            tor.extend(self.traverse(p))
+        return tor
+
     def find_neighbors(self, d):
         cp = self.cur_part
         i = 1 if d == 'v' else 0
@@ -100,7 +121,7 @@ class Workspace:
             found = []
         if part is None:
             return found
-        if part.split_dir == d:
+        if part.split_past[0] == d:
             found.extend(part.siblings)
         return self.find_splits(d, part.parent, found)
 
@@ -123,16 +144,22 @@ class Workspace:
         cp = self.cur_part
         if cp.parent is None:
             return
-        tree = self.traverse(cp.parent)
-        if cp not in tree:
+        x, y = cp.dims.midpoint()
+        where_was_it = cp.parent.delete(cp)
+        if where_was_it < 0:
             return
-        cur_i = tree.index(cp)
-        cp.parent.delete(cp)
-        if cp.parent.is_empty:
-            self.cur_part = cp.parent
-        else:
-            del tree[cur_i]
-            self.cur_part = tree[min(len(tree) - 1, cur_i)]
+        tree = self.traverse()
+        tree.sort(key=lambda p: p.dims.distance_to(x, y))
+        self.cur_part = tree[0]
+
+        affected_nodes = self.full_traversal(cp.parent)
+        affected_nodes = list(set(affected_nodes))
+        # self.undo_split(affected_nodes, cp.split_past, where_was_it)
+
+    def undo_split(self, part_list, split_past, i):
+        for p in part_list:
+            # if p.split_past[0] is not None
+            p._unsplit(split_past, i)
 
     def _move(self, d, n):
         cp = self.cur_part
@@ -155,12 +182,14 @@ class Workspace:
 
 
 class Partition:
-    def __init__(self, parent, dims, split_dir=None, win=None):
+    def __init__(self, parent, dims, split_past=None, win=None):
         self.parent = parent
         self.children = []
 
         self.dims = dims
-        self.split_dir = split_dir
+        if split_past is None:
+            split_past = (None, None)
+        self.split_past = split_past
         self.window = win
 
     @property
@@ -169,7 +198,9 @@ class Partition:
 
     @property
     def siblings(self):
-        return self.parent.children
+        if self.parent is not None:
+            return self.parent.children
+        return []
 
     def __iter__(self):
         if not self.is_empty:
@@ -182,23 +213,22 @@ class Partition:
         s = 'part {}'.format(self.dims.__str__())
         if self.window is not None:
             s = '{}\n\thas window {}'.format(s, self.window.handle)
-        if self.split_dir is not None:
-            s = '{}\n\twas split in {} dir'.format(s, self.split_dir)
+        if self.split_past is not None:
+            s = '{}\n\twas split in {} dir (r: {})'.format(s, self.split_past[0], self.split_past[1])
         return s
 
     def delete(self, child):
         if child not in self.children:
-            return
-        self.children.remove(child)
-        if self.is_empty:
-            return
-        if self.parent is None:
-            return
-        # replace urself with your child
-        if len(self.children) == 1:
-            my_ind = self.parent.children.index(self)
-            self.parent.children[my_ind] = self.children[0]
+            return -1
 
+        where_was_it = self.children.index(child)
+        new_me = self.children[1 - where_was_it]
+
+        self.window = new_me.window
+        self.children = new_me.children
+        # self.dims = new_me.dims
+        self.split_past = new_me.split_past
+        return where_was_it
 
     def _split(self, d, r, new_win):
         if d == 'h':
@@ -211,9 +241,9 @@ class Partition:
 
         dim1, dim2 = sf(r)
         # move current window into first partition
-        p1 = Partition(self, dim1, d, self.window)
+        p1 = Partition(self, dim1, (d, r), self.window)
         # any new window goes into second
-        p2 = Partition(self, dim2, d, new_win)
+        p2 = Partition(self, dim2, (d, r), new_win)
         self.children.extend([p1, p2])
         if new_win is None:
             return p1
@@ -224,6 +254,16 @@ class Partition:
 
     def split_v(self, r=0.5, new_win=None):
         return self._split('v', r, new_win)
+
+    def _unsplit(self, split_past, i):
+        if split_past[0] == 'v':
+            print('-'*40)
+            print(self.dims)
+            self.dims = self.dims.unsplit_v(i, split_past[1])
+            print(self.dims)
+        else:
+            self.dims = self.dims.unsplit_h(i, split_past[1])
+
 
 
 class WinNode:
@@ -267,8 +307,6 @@ class DefaultTilingScheme(TileScheme):
 
     def untile(self, part):
         self.tile_count = max(0, self.tile_count - 1)
-        part.unsplit()
-
 
 # configuration
 class Config:
