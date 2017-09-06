@@ -57,31 +57,37 @@ class Dims(namedtuple('Dims', ['x', 'y', 'w', 'h'])):
                (end_2 >= start_1 and end_2 <= end_1)
 
 
-class Split(namedtuple('Split', ['d', 'r'])):
-    # direction and ratio
+class Split(namedtuple('Split', ['d', 'r', 'i'])):
+    # direction, ratio and index
     # direction can be either
     # h - horizontal
     # v - vertical
     # n - neither
-    # ratio is a number between 0 and 1
+    # ratio is a float between 0 and 1
     __slots__ = ()
 
     def __str__(self):
-        return 'split: (d: {}, r: {:3f})'.format(self.d, self.r)
+        return 'split #{}: (d: {}, r: {:3f})'.format(self.i, self.d, self.r)
 
 
 # boxing
 class Workspace:
-    def __init__(self, index, base_dims, tile_scheme=None):
-        self.index = index
+    # a workspace is like a super-partition
+    def __init__(self, base_dims, tile_scheme=None, first_child=None):
         self.base_dims = base_dims
 
         if tile_scheme is None:
             tile_scheme = DefaultTilingScheme()
         self.tile_scheme = tile_scheme
 
-        self.children = [Partition(self, self.base_dims)]
-        self.cur_part = self.children[0]
+        if first_child is None:
+            first_child = Partition(self, self.base_dims)
+        else:
+            first_child.parent = self
+            first_child.dims = self.base_dims
+
+        self.children = [first_child]
+        self.cur_part = first_child
 
         # moving around
         self.go_left = lambda: self._move('h', -1)
@@ -89,24 +95,24 @@ class Workspace:
         self.go_up = lambda: self._move('v', -1)
         self.go_down = lambda: self._move('v', 1)
 
-    def traverse(self, part=None):
-        if part is None:
-            part = self.children[0]
-        tor = []
+    def _full_traversal(self, part):
+        tor = [part]
         for p in part:
-            if p.is_empty:
-                tor.append(p)
-            else:
-                tor.extend(self.traverse(p))
+            tor.extend(self._full_traversal(p))
         return tor
 
-    def full_traversal(self, part=None):
+    def traverse(self, part=None, filter_fun=None):
+        # either do full traversal
+        # or only return the nodes that match a filter function
         if part is None:
             part = self.children[0]
+        if filter_fun is None:
+            return self._full_traversal(part)
         tor = []
         for p in part:
-            tor.append(p)
-            tor.extend(self.traverse(p))
+            if filter_fun(p):
+                tor.append(p)
+            tor.extend(self.traverse(p, filter_fun))
         return tor
 
     def find_neighbors(self, d):
@@ -201,7 +207,7 @@ class Partition:
 
         self.dims = dims
         if split is None:
-            split = Split('n', 1.0)
+            split = Split('n', 1.0, 0)
         self.split = split
         self.window = win
 
@@ -219,15 +225,11 @@ class Partition:
         if not self.is_empty:
             for b in self.children:
                 yield b
-        else:
-            yield self
 
     def __str__(self):
         s = 'part {}'.format(self.dims.__str__())
         if self.window is not None:
             s = '{}\n\thas window {}'.format(s, self.window.handle)
-        if self.split_past is not None:
-            s = '{}\n\twas split in {} dir (r: {})'.format(s, self.split_past[0], self.split_past[1])
         return s
 
     def delete(self, child):
@@ -254,9 +256,9 @@ class Partition:
 
         dim1, dim2 = sf(r)
         # move current window into first partition
-        p1 = Partition(self, dim1, (d, r), self.window)
+        p1 = Partition(self, dim1, Split(d, r, 0), self.window)
         # any new window goes into second
-        p2 = Partition(self, dim2, (d, r), new_win)
+        p2 = Partition(self, dim2, Split(d, r, 1), new_win)
         self.children.extend([p1, p2])
         if new_win is None:
             return p1
@@ -268,14 +270,14 @@ class Partition:
     def split_v(self, r=0.5, new_win=None):
         return self._split('v', r, new_win)
 
-    def _unsplit(self, split_past, i):
-        if split_past[0] == 'v':
-            print('-'*40)
-            print(self.dims)
-            self.dims = self.dims.unsplit_v(i, split_past[1])
-            print(self.dims)
-        else:
-            self.dims = self.dims.unsplit_h(i, split_past[1])
+    # def _unsplit(self, split_past, i):
+    #     if split_past[0] == 'v':
+    #         print('-'*40)
+    #         print(self.dims)
+    #         self.dims = self.dims.unsplit_v(i, split_past[1])
+    #         print(self.dims)
+    #     else:
+    #         self.dims = self.dims.unsplit_h(i, split_past[1])
 
 
 
@@ -321,6 +323,7 @@ class DefaultTilingScheme(TileScheme):
     def untile(self, part):
         self.tile_count = max(0, self.tile_count - 1)
 
+
 # configuration
 class Config:
     def __init__(self):
@@ -338,7 +341,13 @@ class Config:
 
         self.FAKE_WIN_COLOR = 'red'
 
+
 if __name__ == '__main__':
     desktop = Dims(0, 0, 400, 225)
-    ws = Workspace(0, desktop)
-    desktop.check_touching(Dims(1,1,1,1), 'h')
+    ws = Workspace(desktop)
+    ws.tile()
+    # ws.tile()
+    nl = ws.traverse()
+    print(nl)
+    print(ws.children[0].children)
+    

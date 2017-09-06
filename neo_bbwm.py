@@ -11,7 +11,7 @@ if __name__ == '__main__':
 
     # backend
     desktop = bb_core.Dims(0, 0, 800, 450)
-    ws = bb_core.Workspace(0, desktop)
+    ws = bb_core.Workspace(desktop)
 
     # gui
     root = tk.Tk()
