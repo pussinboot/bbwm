@@ -57,6 +57,19 @@ class Dims(namedtuple('Dims', ['x', 'y', 'w', 'h'])):
                (end_2 >= start_1 and end_2 <= end_1)
 
 
+class Split(namedtuple('Split', ['d', 'r'])):
+    # direction and ratio
+    # direction can be either
+    # h - horizontal
+    # v - vertical
+    # n - neither
+    # ratio is a number between 0 and 1
+    __slots__ = ()
+
+    def __str__(self):
+        return 'split: (d: {}, r: {:3f})'.format(self.d, self.r)
+
+
 # boxing
 class Workspace:
     def __init__(self, index, base_dims, tile_scheme=None):
@@ -67,8 +80,8 @@ class Workspace:
             tile_scheme = DefaultTilingScheme()
         self.tile_scheme = tile_scheme
 
-        self.partitions = [Partition(None, self.base_dims)]
-        self.cur_part = self.partitions[0]
+        self.children = [Partition(self, self.base_dims)]
+        self.cur_part = self.children[0]
 
         # moving around
         self.go_left = lambda: self._move('h', -1)
@@ -78,7 +91,7 @@ class Workspace:
 
     def traverse(self, part=None):
         if part is None:
-            part = self.partitions[0]
+            part = self.children[0]
         tor = []
         for p in part:
             if p.is_empty:
@@ -89,7 +102,7 @@ class Workspace:
 
     def full_traversal(self, part=None):
         if part is None:
-            part = self.partitions[0]
+            part = self.children[0]
         tor = []
         for p in part:
             tor.append(p)
@@ -182,14 +195,14 @@ class Workspace:
 
 
 class Partition:
-    def __init__(self, parent, dims, split_past=None, win=None):
+    def __init__(self, parent, dims, split=None, win=None):
         self.parent = parent
         self.children = []
 
         self.dims = dims
-        if split_past is None:
-            split_past = (None, None)
-        self.split_past = split_past
+        if split is None:
+            split = Split('n', 1.0)
+        self.split = split
         self.window = win
 
     @property
