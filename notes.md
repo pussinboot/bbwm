@@ -23,3 +23,8 @@ tabs w/in partitions
 
 # nnn
 so split info goes into parent when a split occurs
+
+fix untile
+    make sure to account for if children > 2..
+    how do i do equal splits and constraints.. 
+    for 1st one i can handle it in tiling scheme
