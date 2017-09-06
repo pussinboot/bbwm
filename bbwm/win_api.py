@@ -10,7 +10,6 @@ class TestBinds:
         self.gui.canvas.focus_set()
         self.draw_all_parts()
 
-
     def draw_all_parts(self):
         self.gui.clear()
         # print('-'*20)
