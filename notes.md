@@ -19,3 +19,7 @@ get reliable win api hooking
 # mayb?
 tabs w/in partitions
 
+
+
+# nnn
+so split info goes into parent when a split occurs

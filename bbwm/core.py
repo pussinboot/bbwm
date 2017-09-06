@@ -57,7 +57,7 @@ class Dims(namedtuple('Dims', ['x', 'y', 'w', 'h'])):
                (end_2 >= start_1 and end_2 <= end_1)
 
 
-class Split(namedtuple('Split', ['d', 'r', 'i'])):
+class Split(namedtuple('Split', ['d', 'r'])):
     # direction, ratio and index
     # direction can be either
     # h - horizontal
@@ -67,7 +67,7 @@ class Split(namedtuple('Split', ['d', 'r', 'i'])):
     __slots__ = ()
 
     def __str__(self):
-        return 'split #{}: (d: {}, r: {:3f})'.format(self.i, self.d, self.r)
+        return 'split : (d: {}, r: {:01.3f})'.format(self.d, self.r)
 
 
 # boxing
@@ -95,6 +95,17 @@ class Workspace:
         self.go_up = lambda: self._move('v', -1)
         self.go_down = lambda: self._move('v', 1)
 
+    def _str_help(self, part, prefix=""):
+        tor = ["{}{}".format(prefix, part.__str__())]
+        pref = "\t{}".format(prefix)
+        for p in part:
+            tor.extend(self._str_help(p, pref))
+        return tor
+
+    def __str__(self):
+        all_str = self._str_help(self.children[0])
+        return "\n".join(all_str)
+
     def _full_traversal(self, part):
         tor = [part]
         for p in part:
@@ -120,6 +131,7 @@ class Workspace:
 
     def _bottom_up_traverse(self, part):
         tor = [part]
+        # actually nvm the partition isinstance check.. if i want workspaces within
         if part.parent is not None and isinstance(part.parent, Partition):
             tor.extend(self._bottom_up_traverse(part.parent))
         return tor
@@ -132,7 +144,7 @@ class Workspace:
         # find all partitions that were split in the direction we're looking for
         # from the bottom up
         cands = self._bottom_up_traverse(root)
-        one_dir = [p for p in cands if p.split.d == d]
+        one_dir = [p for p in cands if p.split is not None and p.split.d == d]
         # get all their leaves
         all_p = []
         for c in one_dir:
@@ -204,14 +216,13 @@ class Workspace:
 
 
 class Partition:
-    def __init__(self, parent, dims, split=None, win=None):
+    def __init__(self, parent, dims, index=0, win=None):
         self.parent = parent
         self.children = []
 
         self.dims = dims
-        if split is None:
-            split = Split('n', 1.0, 0)
-        self.split = split
+        self.index = index
+        self.split = None
         self.window = win
 
     @property
@@ -230,9 +241,11 @@ class Partition:
                 yield b
 
     def __str__(self):
-        s = 'part {}'.format(self.dims.__str__())
+        s = 'part (#{}) {}'.format(self.index, self.dims.__str__())
+        if self.split is not None:
+            s = '{} | {}'.format(s, self.split.__str__())
         if self.window is not None:
-            s = '{}\n\thas window {}'.format(s, self.window.handle)
+            s = '{} | win : {}'.format(s, self.window.handle)
         return s
 
     def delete(self, child):
@@ -259,9 +272,11 @@ class Partition:
 
         dim1, dim2 = sf(r)
         # move current window into first partition
-        p1 = Partition(self, dim1, Split(d, r, 0), self.window)
+        p1 = Partition(self, dim1, 0, self.window)
         # any new window goes into second
-        p2 = Partition(self, dim2, Split(d, r, 1), new_win)
+        p2 = Partition(self, dim2, 1, new_win)
+        # and now we know how we were split
+        self.split = Split(d, r)
         self.children.extend([p1, p2])
         if new_win is None:
             return p1
@@ -350,10 +365,11 @@ if __name__ == '__main__':
     ws = Workspace(desktop)
     ws.tile()
     ws.tile()
-    nl = ws.find_leaf_parts()
-    print(nl)
-    print()
-    bu = ws._bottom_up_traverse(nl[-2])
-    for p in bu:
-        print(p)
-    print(ws.find_neighbors('h', nl[0]))
+    # nl = ws.find_leaf_parts()
+    # print(nl)
+    # print()
+    # bu = ws._bottom_up_traverse(nl[-2])
+    # for p in bu:
+    #     print(p)
+    # print(ws.find_neighbors('h', nl[0]))
+    print(ws)
