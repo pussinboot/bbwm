@@ -10,6 +10,12 @@ class TestBinds:
         self.gui.canvas.focus_set()
         self.draw_all_parts()
 
+    def valid_moves(self, d, n):
+        vs = self.workspace.find_valid_moves(d, n)
+        if vs is not None:
+            for v in vs:
+                self.gui.draw_fill(v.dims)
+
     def draw_all_parts(self):
         self.gui.clear()
         # print('-'*20)
@@ -21,6 +27,9 @@ class TestBinds:
             # print(p)
 
         self.gui.draw_cursor(self.workspace.cur_part.dims)
+
+    def print_cur(self):
+        print(self.workspace)
 
     def paint_neighbors(self, d):
         ns = self.workspace.find_neighbors(d)
@@ -65,3 +74,10 @@ class TestBinds:
         self.gui.canvas.bind('<Right>', lambda e: self.move(self.workspace.go_right))
         self.gui.canvas.bind('<Up>', lambda e: self.move(self.workspace.go_up))
         self.gui.canvas.bind('<Down>', lambda e: self.move(self.workspace.go_down))
+        self.gui.canvas.bind('<Shift-Left>', lambda e: self.valid_moves('h', -1))
+        self.gui.canvas.bind('<Shift-Right>', lambda e: self.valid_moves('h', 1))
+        self.gui.canvas.bind('<Shift-Up>', lambda e: self.valid_moves('v', -1))
+        self.gui.canvas.bind('<Shift-Down>', lambda e: self.valid_moves('v', 1))
+
+        # 
+        self.gui.canvas.bind('p', lambda e: self.print_cur())

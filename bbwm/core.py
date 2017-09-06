@@ -42,19 +42,11 @@ class Dims(namedtuple('Dims', ['x', 'y', 'w', 'h'])):
 
         return abs(x1 - x2) + abs(y1 - y2)
 
-    def adjacency_check(self, other, i):
-        e_s_1 = self[i]
-        e_s_2 = self[i] + self[i + 2] + 1
-        e_o_1 = other[i]
-        e_o_2 = other[i] + other[i + 2] + 1
-        if e_s_1 == e_o_1 and e_s_2 == e_o_2:
-            return False
-        start_1, end_1 = min(e_s_1, e_s_2), max(e_s_1, e_s_2)
-        start_2, end_2 = min(e_o_1, e_o_2), max(e_o_1, e_o_2)
-        return (start_1 >= start_2 and start_1 <= end_2) or \
-               (end_1 >= start_2 and end_1 <= end_2) or \
-               (start_2 >= start_1 and start_2 <= end_1) or \
-               (end_2 >= start_1 and end_2 <= end_1)
+    def adjacency_check(self, o, i):
+        # among our dimension make sure touching
+        return (self[i] == o[i] + o[i + 2] or o[i] == self[i] + self[i + 2]) and \
+               ((o[1 - i] <= self[1 - i] and (o[1 - i] + o[3 - i]) > self[1 - i]) or \
+               (o[1 - i] > self[1 - i] and o[1 - i] < (self[1 - i] + self[3 - i])))
 
 
 class Split(namedtuple('Split', ['d', 'r'])):
@@ -195,6 +187,17 @@ class Workspace:
             # if p.split_past[0] is not None
             p._unsplit(split_past, i)
 
+    def find_valid_moves(self, d, n):
+        cp = self.cur_part
+        n_ps = self.find_neighbors(d)
+        i = n_ps.index(cp)
+        new_i = i + n
+        if new_i < 0 or new_i >= len(n_ps):
+            return  # no wraparound..
+        # now sort by distance
+        next_ps = n_ps[new_i::n]
+        return next_ps
+
     def _move(self, d, n):
         cp = self.cur_part
         axis = 1 if d == 'v' else 0
@@ -206,11 +209,13 @@ class Workspace:
             return  # no wraparound..
         # now sort by distance
         next_ps = n_ps[new_i::n]
-        # want closest to something akin to where we're aiming..
-        x, y = cp.dims.midpoint()
-        x += cp.dims.w * n * (1 - axis)
-        y += cp.dims.h * n * axis
+        # want closest to corner
+        x = cp.dims[0] #+ (1 + n) // 2 * cp.dims[2]
+        # xor to add height
+        y = cp.dims[1] + cp.dims[3] * (bool((1 - n) // 2) != bool(axis))
 
+
+        # fix this.. not closest.. sort top to bot / left to right assuming only touching
         next_ps.sort(key=lambda p: p.dims.distance_to(x, y))
         self.cur_part = next_ps[0]
 
