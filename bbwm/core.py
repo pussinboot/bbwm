@@ -101,7 +101,7 @@ class Workspace:
             tor.extend(self._full_traversal(p))
         return tor
 
-    def traverse(self, part=None, filter_fun=None):
+    def _traverse(self, part=None, filter_fun=None):
         # either do full traversal
         # or only return the nodes that match a filter function
         if part is None:
@@ -112,37 +112,40 @@ class Workspace:
         for p in part:
             if filter_fun(p):
                 tor.append(p)
-            tor.extend(self.traverse(p, filter_fun))
+            tor.extend(self._traverse(p, filter_fun))
         return tor
 
-    def find_neighbors(self, d):
-        cp = self.cur_part
+    def find_leaf_parts(self, root=None):
+        return self._traverse(root, lambda p: p.is_empty)
+
+    def _bottom_up_traverse(self, part):
+        tor = [part]
+        if part.parent is not None and isinstance(part.parent, Partition):
+            tor.extend(self._bottom_up_traverse(part.parent))
+        return tor
+
+    def find_neighbors(self, d, root=None):
+        if root is None:
+            root = self.cur_part
         i = 1 if d == 'v' else 0
 
         # find all partitions that were split in the direction we're looking for
-        cands = self.find_splits(d, cp)
-        # get all their children
+        # from the bottom up
+        cands = self._bottom_up_traverse(root)
+        one_dir = [p for p in cands if p.split.d == d]
+        # get all their leaves
         all_p = []
-        for c in cands:
-            all_p.extend(self.traverse(c))
-        all_p = list(set(all_p))
+        for c in one_dir:
+            all_p.extend(self.find_leaf_parts(c))
+
         # now only do ones that touch..
-        fil_p = [p for p in all_p if p.dims.adjacency_check(cp.dims, i)]
-        fil_p.append(cp)
+        fil_p = [p for p in all_p if p.dims.adjacency_check(root.dims, i)]
+        fil_p.append(root)
         fil_p = list(set(fil_p))
 
         # sort them
         fil_p.sort(key=lambda p: p.dims[i])
         return fil_p
-
-    def find_splits(self, d, part=None, found=None):
-        if found is None:
-            found = []
-        if part is None:
-            return found
-        if part.split_past[0] == d:
-            found.extend(part.siblings)
-        return self.find_splits(d, part.parent, found)
 
     def tile(self, new_win=None):
         np = self.tile_scheme.tile(self.cur_part, new_win)
@@ -346,8 +349,11 @@ if __name__ == '__main__':
     desktop = Dims(0, 0, 400, 225)
     ws = Workspace(desktop)
     ws.tile()
-    # ws.tile()
-    nl = ws.traverse()
+    ws.tile()
+    nl = ws.find_leaf_parts()
     print(nl)
-    print(ws.children[0].children)
-    
+    print()
+    bu = ws._bottom_up_traverse(nl[-2])
+    for p in bu:
+        print(p)
+    print(ws.find_neighbors('h', nl[0]))
