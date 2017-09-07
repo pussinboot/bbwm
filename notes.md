@@ -13,6 +13,9 @@ splits.. wherever og window was has been split..
 # then actually tiling
 
 get reliable win api hooking
+need to register a shellhook to receive messages about closed / new windows?
+this should be added to the tk "window"
+main bbwm fun needs to tie together the tiling logic with windows & the gui but they should remain (mostly) independent
 
 # mayb?
 tabs w/in partitions
