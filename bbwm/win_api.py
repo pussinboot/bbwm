@@ -21,6 +21,7 @@ class TestBinds:
         # print('-'*20)
 
         all_parts = self.workspace.find_leaf_parts()
+
         for p in all_parts:
             cur = self.workspace.cur_part == p
             self.gui.draw_border(p.dims, cur)

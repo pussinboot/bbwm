@@ -10,8 +10,6 @@ so.. default add win to tile > can rearrange all at once
 add "workspace" -> the partition gets its own tiling scheme
 splits.. wherever og window was has been split..
 
-2 untile u just merge partitions 
-
 # then actually tiling
 
 get reliable win api hooking
@@ -19,12 +17,5 @@ get reliable win api hooking
 # mayb?
 tabs w/in partitions
 
-
-
-# nnn
-so split info goes into parent when a split occurs
-
-fix untile
-    make sure to account for if children > 2..
-    how do i do equal splits and constraints.. 
-    for 1st one i can handle it in tiling scheme
+how do i do equal splits and constraints.. 
+for 1st one i can handle it in tiling scheme
