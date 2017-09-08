@@ -2,7 +2,7 @@ import tkinter as tk
 
 
 class TestDraw:
-    def __init__(self, root, base_dims, config, taskicon):
+    def __init__(self, root, base_dims, config, winmethods):
         WIDTH, HEIGHT = base_dims.w, base_dims.h
 
         self.c = config
@@ -15,8 +15,9 @@ class TestDraw:
 
         self.cursor = None
 
-        self.taskicon = taskicon
         self.root.protocol('WM_DELETE_WINDOW', self.kill)
+        self.winmethods = winmethods
+        self.winmethods.start_monitoring()
 
     def get_bbox(self, dims):
         x, y, w, h = dims.x, dims.y, dims.w, dims.h
@@ -36,7 +37,6 @@ class TestDraw:
     def draw_fill(self, dims):
         self.canvas.create_rectangle(self.get_bbox(dims), fill=self.c.FAKE_WIN_COLOR)
 
-
     def draw_cursor(self, dims):
         cx, cy = dims.midpoint()
         r = self.c.CURSOR_SIZE
@@ -51,10 +51,9 @@ class TestDraw:
         self.cursor = None
 
     def kill(self):
-        self.taskicon.destroy()
-        # deregister shellhook
         self.root.destroy()
-
+        # self.taskicon.destroy()
+        # uhhh need to access winmethods
 
 
 class BBDraw:
