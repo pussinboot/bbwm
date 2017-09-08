@@ -2,7 +2,7 @@ import tkinter as tk
 
 
 class TestDraw:
-    def __init__(self, root, base_dims, config, winmethods):
+    def __init__(self, root, base_dims, config):
         WIDTH, HEIGHT = base_dims.w, base_dims.h
 
         self.c = config
@@ -16,8 +16,7 @@ class TestDraw:
         self.cursor = None
 
         self.root.protocol('WM_DELETE_WINDOW', self.kill)
-        self.winmethods = winmethods
-        self.winmethods.start_monitoring()
+
 
     def get_bbox(self, dims):
         x, y, w, h = dims.x, dims.y, dims.w, dims.h
@@ -52,8 +51,7 @@ class TestDraw:
 
     def kill(self):
         self.root.destroy()
-        # self.taskicon.destroy()
-        # uhhh need to access winmethods
+
 
 
 class BBDraw:
