@@ -2,20 +2,26 @@ import keyboard
 import win32con, win32gui, win32api
 
 from ctypes import windll
-import ctypes
+
 import threading
 
 import time
+
 
 try:
     from core import Dims
 except:
     from .core import Dims
 
+
 class TestBinds:
     def __init__(self, ws, gui):
         self.workspace = ws
         self.gui = gui
+
+        self.win_methods = WinMethods(self.process_msgs)
+        self.win_methods.start_monitoring()
+
         self.setup_binds()
         self.gui.canvas.focus_set()
         self.draw_all_parts()
@@ -92,6 +98,10 @@ class TestBinds:
 
         # 
         self.gui.canvas.bind('p', lambda e: self.print_cur())
+
+    def process_msgs(self, msg):
+        print(msg)
+
 
 class WinWin:
     def __init__(self, handle):
@@ -181,14 +191,32 @@ class WinWin:
 
 
 class WinMethods:
-    def __init__(self):
+    def __init__(self, msg_processor):
         self.monitors = []
         self.find_monitors()
         # need to add some dict to map win handles to win objects
         # so that our hook can actually .. affect things
 
+        self.msg_processor = msg_processor
+
+        self.msg_type_to_action = {
+            win32con.HSHELL_WINDOWCREATED: 'new_win',
+            win32con.HSHELL_WINDOWDESTROYED: 'close_win',
+            32772: 'focus_win',
+        }
+
     def find_monitors(self):
         self.monitors = [(handle, Dims(*rect)) for handle, _, rect in win32api.EnumDisplayMonitors()]
+
+    def monitor_from_point(self, point):
+        try:
+            handle = win32api.MonitorFromPoint(point, win32con.MONITOR_DEFAULTTONEAREST)
+        except:
+            return -1
+        for i, m in enumerate(self.monitors):
+            if handle == m[0]:
+                return i
+        return -1
 
     def get_all_windows(self):
         def callback(handle, tor):
@@ -219,13 +247,24 @@ class WinMethods:
         spy = WinTaskIcon()
         msg = spy.get_msg()
         while msg:
-            print(msg)
+            # print(msg)
+            # process msg
+            lparam = msg[1][2]
+            if lparam in self.msg_type_to_action:
+                hwnd, point = msg[1][3], msg[1][5]
+                monitor_i = self.monitor_from_point(point)
+
+                self.msg_processor((self.msg_type_to_action[lparam], hwnd, monitor_i))
+
             msg = spy.get_msg()
 
     def start_monitoring(self):
         self.msg_thread = threading.Thread(target=self._intercept_msgs, daemon=True)
         self.msg_thread.start()
 
+    def check_for_msgs(self):
+        if not self.msg_queue.empty():
+            return self.msg_queue.get()
 
 
 class WinTaskIcon:
