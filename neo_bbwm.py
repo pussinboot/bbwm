@@ -15,7 +15,8 @@ if __name__ == '__main__':
 
     # gui
     root = tk.Tk()
-    TD = bb_draw.TestDraw(root, desktop, c)
+    icon = bb_api.WinTaskIcon()
+    TD = bb_draw.TestDraw(root, desktop, c, icon)
 
     # keybinds
     api = bb_api.TestBinds(ws, TD)
