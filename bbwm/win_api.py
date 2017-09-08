@@ -23,6 +23,7 @@ class TestBinds:
         self.win_methods.start_monitoring()
 
         self.setup_binds()
+        self.setup_hotkeys()
         self.gui.canvas.focus_set()
         self.draw_all_parts()
 
@@ -99,17 +100,43 @@ class TestBinds:
         # 
         self.gui.canvas.bind('p', lambda e: self.print_cur())
 
+    def actual_tile(self):
+        win = self.win_methods.get_focused_window()
+        if win is not None:
+            self.workspace.tile(win)
+            self.draw_all_parts()
+
+    def actual_untile(self):
+        win = self.win_methods.get_focused_window()
+        if win is not None:
+            self.workspace.untile(win.part)
+            self.draw_all_parts()
+
+    def setup_hotkeys(self):
+        keyboard.add_hotkey('ctrl+alt+z', self.actual_tile)
+        keyboard.add_hotkey('ctrl+alt+x', self.actual_untile)
+
     def process_msgs(self, msg):
         print(msg)
+        if msg[0] == 'focus_win':
+            # will need to choose workspace associated with the monitor
+            w = self.win_methods._get_or_add_win(msg[1], False)
+            if w is not None and w.part is not None:
+                self.workspace.cur_part = w.part
+                self.draw_all_parts()
+        elif msg[0] == 'close_win':
+            w = self.win_methods._get_or_add_win(msg[1], False)
+            if w is not None and w.part is not None:
+                self.workspace.untile(w.part)
+                self.draw_all_parts()
+                del self.win_methods.hwnd_to_win[msg[1]]
+
 
 
 class WinWin:
     def __init__(self, handle):
         self.hwnd = handle
-        # i may need to register an event handler to keep track of if the window
-        # - gets focused
-        # - is closed
-        # - ... ?
+        self.part = None
 
     @property
     def dims(self):
@@ -196,6 +223,7 @@ class WinMethods:
         self.find_monitors()
         # need to add some dict to map win handles to win objects
         # so that our hook can actually .. affect things
+        self.hwnd_to_win = {}
 
         self.msg_processor = msg_processor
 
@@ -228,16 +256,26 @@ class WinMethods:
 
         return windows
 
-    def get_focused_window(self):
+    def _get_or_add_win(self, hwnd, add_it=True):
+        if hwnd not in self.hwnd_to_win:
+            if add_it:
+                self.hwnd_to_win[hwnd] = WinWin(hwnd)
+            else:
+                return
+        return self.hwnd_to_win[hwnd]
+
+    def get_focused_window(self, only_existing=False):
         try:
-            return WinWin(win32gui.GetForegroundWindow())
+            hwnd = win32gui.GetForegroundWindow()
+            return self._get_or_add_win(hwnd, not only_existing)
         except win32gui.error:
             pass
 
-    def get_mouse_window(self):
+    def get_mouse_window(self, only_existing=False):
         # returns window under mouse
         try:
-            return WinWin(win32gui.WindowFromPoint(win32api.GetCursorPos()))
+            hwnd = win32gui.WindowFromPoint(win32api.GetCursorPos())
+            return self._get_or_add_win(hwnd, not only_existing)
         except win32gui.error:
             pass
         except win32api.error:
@@ -254,17 +292,28 @@ class WinMethods:
                 hwnd, point = msg[1][3], msg[1][5]
                 monitor_i = self.monitor_from_point(point)
 
-                self.msg_processor((self.msg_type_to_action[lparam], hwnd, monitor_i))
+                self._handle_msg((self.msg_type_to_action[lparam], hwnd, monitor_i))
 
             msg = spy.get_msg()
+
+    def _handle_msg(self, msg):
+        msg_type, hwnd = msg[0], msg[1]
+        if msg_type == 'new_win':
+            if hwnd not in self.hwnd_to_win:
+                self.hwnd_to_win[hwnd] = WinWin(hwnd)
+            else:
+                return
+        elif msg_type == 'close_win':
+            if hwnd not in self.hwnd_to_win:
+                return
+        elif msg_type == 'focus_win':
+            if hwnd not in self.hwnd_to_win:
+                return
+        self.msg_processor(msg)
 
     def start_monitoring(self):
         self.msg_thread = threading.Thread(target=self._intercept_msgs, daemon=True)
         self.msg_thread.start()
-
-    def check_for_msgs(self):
-        if not self.msg_queue.empty():
-            return self.msg_queue.get()
 
 
 class WinTaskIcon:
@@ -319,25 +368,4 @@ class WinTaskIcon:
             return win32gui.GetMessage(self.hwnd, 0, 0)
         except Exception as e:
             print(e)
-
-
-
-if __name__ == '__main__':
-    wm = WinMethods()
-    # print(wm.monitors[0][1])
-    st = wm.get_focused_window()
-    a = wm.get_mouse_window()
-    # move_meme = Dims(100, 100, 100, 100)
-    # a.set_dims(move_meme)
-
-    # a.hide()
-    # time.sleep(1)
-    # a.unhide()
-
-    print(a.is_focused)
-    a.focus(True)
-    time.sleep(0.1)
-    print(a.is_focused)
-
-
 

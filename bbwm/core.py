@@ -199,8 +199,11 @@ class Workspace:
         if np is not None:
             self.cur_part = np
 
-    def untile(self):
-        cp = self.cur_part
+    def untile(self, part=None):
+        if part is None:
+            cp = self.cur_part
+        else:
+            cp = part
         if cp.parent is None:
             return
 
@@ -217,11 +220,13 @@ class Workspace:
                 c.index = i
             next_cur = cp.parent.children[new_i]
 
-        # assign current to closest leaf partition
-        if next_cur.is_empty:
-            self.cur_part = next_cur
-        else:
-            self.cur_part = self.find_leaf_parts(next_cur)[0]
+        if part == self.cur_part:
+            # if the partition we untiled was current
+            # reassign to closest leaf partition
+            if next_cur.is_empty:
+                self.cur_part = next_cur
+            else:
+                self.cur_part = self.find_leaf_parts(next_cur)[0]
 
         # now recompute all dims because this doesnt work...
         # aff_parts = self._traverse(self.cur_part.parent)
@@ -244,6 +249,8 @@ class Partition:
         self.index = index
         self.split = None
         self.window = win
+        if self.window is not None:
+            self.window.part = self
 
     @property
     def is_empty(self):
@@ -264,7 +271,7 @@ class Partition:
         if self.split is not None:
             s = '{} | {}'.format(s, self.split.__str__())
         if self.window is not None:
-            s = '{} | win : {}'.format(s, self.window.handle)
+            s = '{} | win : {}'.format(s, self.window.hwnd)
         return s
 
     def become_child(self, idx=0):
@@ -276,6 +283,8 @@ class Partition:
             c.parent = self
         self.split = new_me.split
         self.window = new_me.window
+        if self.window is not None:
+            self.window.part = self
 
     def resize_from_parent(self):
         if self.parent is None:
@@ -297,6 +306,7 @@ class Partition:
         dim1, dim2 = sf(r)
         # move current window into first partition
         p1 = Partition(self, dim1, 0, self.window)
+        self.window = None
         # any new window goes into second
         p2 = Partition(self, dim2, 1, new_win)
         # and now we know how we were split
@@ -311,15 +321,6 @@ class Partition:
 
     def split_v(self, r=0.5, new_win=None):
         return self._split('v', r, new_win)
-
-
-class WinNode:
-    def __init__(self, dims, handle=None):
-        self.handle = handle
-        self.dims = dims
-
-    def __str__(self):
-        return 'win {} | {}'.format(self.dims.__str__(), self.handle)
 
 
 # tiling logic
@@ -344,6 +345,15 @@ class DefaultTilingScheme(TileScheme):
         self.tile_count = 0
 
     def tile(self, part, new_win=None):
+        if new_win is not None:
+            if new_win.part is not None:
+                # don't retile
+                return
+            elif part.window is None:
+                # first add to current partition if it's empty
+                part.window = new_win
+                new_win.part = part
+                return
         if self.tile_count == 0:
             np = part.split_h(0.67, new_win)
         else:
@@ -352,7 +362,7 @@ class DefaultTilingScheme(TileScheme):
             self.tile_count += 1
             return np
 
-    def untile(self, part):
+    def untile(self, part, new_win=None):
         self.tile_count = max(0, self.tile_count - 1)
 
 
