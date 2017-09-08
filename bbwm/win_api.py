@@ -1,6 +1,12 @@
 import keyboard
 import win32con, win32gui, win32api
 
+from ctypes import windll
+import ctypes
+import threading
+
+import time
+
 try:
     from core import Dims
 except:
@@ -209,6 +215,18 @@ class WinMethods:
         except win32api.error:
             pass
 
+    def _intercept_msgs(self):
+        spy = WinTaskIcon()
+        msg = spy.get_msg()
+        while msg:
+            print(msg)
+            msg = spy.get_msg()
+
+    def start_monitoring(self):
+        self.msg_thread = threading.Thread(target=self._intercept_msgs, daemon=True)
+        self.msg_thread.start()
+
+
 
 class WinTaskIcon:
     # inspo: https://github.com/tzbob/python-windows-tiler/blob/master/pwt/notifyicon.py
@@ -241,16 +259,31 @@ class WinTaskIcon:
                      "bbwm")  # hovertext
 
         win32gui.Shell_NotifyIcon(win32gui.NIM_ADD, notify_id)
+        self.register_shellhook()
+
 
     def destroy(self):
+        self.unregister_shellhook()
         win32gui.Shell_NotifyIcon(win32gui.NIM_DELETE, (self.hwnd, 0))
 
-    # def register_shellhook(self):
+    def register_shellhook(self):
+        if windll.user32.RegisterShellHookWindow(self.hwnd):
+            return True
+        return False
+
+    def unregister_shellhook(self):
+        windll.user32.DeregisterShellHookWindow(self.hwnd)
+
+    def get_msg(self):
+        # this is blocking!!
+        try:
+            return win32gui.GetMessage(self.hwnd, 0, 0)
+        except Exception as e:
+            print(e)
 
 
 
 if __name__ == '__main__':
-    import time
     wm = WinMethods()
     # print(wm.monitors[0][1])
     st = wm.get_focused_window()
