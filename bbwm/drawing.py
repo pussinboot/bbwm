@@ -2,7 +2,7 @@ import tkinter as tk
 
 
 class TestDraw:
-    def __init__(self, root, base_dims, config):
+    def __init__(self, root, base_dims, config, taskicon):
         WIDTH, HEIGHT = base_dims.w, base_dims.h
 
         self.c = config
@@ -14,6 +14,9 @@ class TestDraw:
         self.canvas.pack()
 
         self.cursor = None
+
+        self.taskicon = taskicon
+        self.root.protocol('WM_DELETE_WINDOW', self.kill)
 
     def get_bbox(self, dims):
         x, y, w, h = dims.x, dims.y, dims.w, dims.h
@@ -46,6 +49,11 @@ class TestDraw:
     def clear(self):
         self.canvas.delete('all')
         self.cursor = None
+
+    def kill(self):
+        self.taskicon.destroy()
+        # deregister shellhook
+        self.root.destroy()
 
 
 

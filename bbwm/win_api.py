@@ -210,6 +210,45 @@ class WinMethods:
             pass
 
 
+class WinTaskIcon:
+    # inspo: https://github.com/tzbob/python-windows-tiler/blob/master/pwt/notifyicon.py
+    def __init__(self):
+        window_class_name = "bbwm icon"
+        # Register the Window class.
+        window_class = win32gui.WNDCLASS()
+        window_class.hInstance = win32gui.GetModuleHandle(None)
+        window_class.lpszClassName = window_class_name
+        window_class.style = win32con.CS_VREDRAW | win32con.CS_HREDRAW
+        window_class.hCursor = win32gui.LoadCursor(0, win32con.IDC_ARROW)
+        window_class.hbrBackground = win32con.COLOR_WINDOW
+        reg_win_class = win32gui.RegisterClass(window_class)
+
+        # create window
+        self.hwnd = win32gui.CreateWindow(reg_win_class, window_class_name,
+                                          win32con.WS_OVERLAPPED | win32con.WS_SYSMENU,  # style
+                                          0, 0, win32con.CW_USEDEFAULT, win32con.CW_USEDEFAULT, 0, 0,
+                                          window_class.hInstance, None)
+
+        win32gui.UpdateWindow(self.hwnd)
+
+        # draw icon
+        # hold onto this in order to show balloons
+        self.icon = win32gui.LoadIcon(0, win32con.IDI_APPLICATION)
+
+        notify_id = (self.hwnd, 0,
+                     win32gui.NIF_ICON | win32gui.NIF_MESSAGE | win32gui.NIF_TIP,
+                     win32con.WM_USER + 20, self.icon,
+                     "bbwm")  # hovertext
+
+        win32gui.Shell_NotifyIcon(win32gui.NIM_ADD, notify_id)
+
+    def destroy(self):
+        win32gui.Shell_NotifyIcon(win32gui.NIM_DELETE, (self.hwnd, 0))
+
+    # def register_shellhook(self):
+
+
+
 if __name__ == '__main__':
     import time
     wm = WinMethods()
