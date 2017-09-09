@@ -206,6 +206,8 @@ class Workspace:
             cp = part
         if cp.parent is None:
             return
+        if cp.index >= len(cp.parent.children):
+            return
 
         # get rid of the partition and reassign indices
 

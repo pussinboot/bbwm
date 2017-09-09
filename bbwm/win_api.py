@@ -1,6 +1,6 @@
 import keyboard
 import win32con, win32gui, win32api
-
+import win32com.client
 from ctypes import windll
 
 import threading
@@ -26,6 +26,13 @@ class TestBinds:
         self.setup_hotkeys()
         self.gui.canvas.focus_set()
         self.draw_all_parts()
+
+        self.move_dir_funs = {
+            'l': self.workspace.go_left,
+            'r': self.workspace.go_right,
+            'u': self.workspace.go_up,
+            'd': self.workspace.go_down,
+        }
 
     def valid_moves(self, d, n):
         vs = self.workspace.find_valid_moves(d, n)
@@ -112,9 +119,24 @@ class TestBinds:
             self.workspace.untile(win.part)
             self.draw_all_parts()
 
+    def move_and_focus(self, d):
+        if d not in self.move_dir_funs:
+            return
+        print('going', d)
+        self.move_dir_funs[d]()
+
+        cp = self.workspace.cur_part
+        if cp is not None and cp.window is not None:
+            cp.window.focus(True)
+
     def setup_hotkeys(self):
-        keyboard.add_hotkey('ctrl+alt+z', self.actual_tile)
-        keyboard.add_hotkey('ctrl+alt+x', self.actual_untile)
+        keyboard.add_hotkey('windows+z', self.actual_tile)
+        keyboard.add_hotkey('windows+x', self.actual_untile)
+
+        keyboard.add_hotkey('windows+left', self.move_and_focus, args=['l'], trigger_on_release=True)
+        keyboard.add_hotkey('windows+right', self.move_and_focus, args=['r'], trigger_on_release=True)
+        keyboard.add_hotkey('windows+up', self.move_and_focus, args=['u'], trigger_on_release=True)
+        keyboard.add_hotkey('windows+down', self.move_and_focus, args=['d'], trigger_on_release=True)
 
     def process_msgs(self, msg):
         print(msg)
@@ -134,9 +156,10 @@ class TestBinds:
 
 
 class WinWin:
-    def __init__(self, handle):
+    def __init__(self, handle, shell):
         self.hwnd = handle
         self.part = None
+        self.shell = shell
 
     @property
     def dims(self):
@@ -201,12 +224,17 @@ class WinWin:
 
     def focus(self, also_center=False):
         try:
+            # need to do stupid thing..
+            # see remarks from here: https://msdn.microsoft.com/en-us/library/windows/desktop/ms633539(v=vs.85).aspx
+            self.shell.SendKeys('_')
+            # show it if it is hidden..
+            win32gui.ShowWindow(self.hwnd, win32con.SW_RESTORE)
             win32gui.SetForegroundWindow(self.hwnd)
             if also_center:
                 return self.center_on_me()
             return True
-        except:
-            pass
+        except Exception as e:
+            print(e)
 
     def center_on_me(self):
         try:
@@ -233,6 +261,8 @@ class WinMethods:
             32772: 'focus_win',
         }
 
+        self.shell = win32com.client.Dispatch("WScript.Shell")
+
     def find_monitors(self):
         self.monitors = [(handle, Dims(*rect)) for handle, _, rect in win32api.EnumDisplayMonitors()]
 
@@ -248,7 +278,7 @@ class WinMethods:
 
     def get_all_windows(self):
         def callback(handle, tor):
-            tor.append(WinWin(handle))
+            tor.append(WinWin(handle, self.shell))
             return True
 
         windows = []
@@ -259,7 +289,7 @@ class WinMethods:
     def _get_or_add_win(self, hwnd, add_it=True):
         if hwnd not in self.hwnd_to_win:
             if add_it:
-                self.hwnd_to_win[hwnd] = WinWin(hwnd)
+                self.hwnd_to_win[hwnd] = WinWin(hwnd, self.shell)
             else:
                 return
         return self.hwnd_to_win[hwnd]
@@ -300,7 +330,7 @@ class WinMethods:
         msg_type, hwnd = msg[0], msg[1]
         if msg_type == 'new_win':
             if hwnd not in self.hwnd_to_win:
-                self.hwnd_to_win[hwnd] = WinWin(hwnd)
+                self.hwnd_to_win[hwnd] = WinWin(hwnd, self.shell)
             else:
                 return
         elif msg_type == 'close_win':
