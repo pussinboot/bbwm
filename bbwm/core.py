@@ -41,6 +41,18 @@ class Dims(namedtuple('Dims', ['x', 'y', 'w', 'h'])):
                ((o[1 - i] <= self[1 - i] and (o[1 - i] + o[3 - i]) > self[1 - i]) or \
                (o[1 - i] > self[1 - i] and o[1 - i] < (self[1 - i] + self[3 - i])))
 
+    def _get_offset_dims(self, lo, to, ro, bo):
+        x, w = self.x + lo, self.w - lo - ro
+        y, h = self.y + to, self.h - to - bo
+        return Dims(x, y, w, h)
+
+    def get_win_dims(self, c):
+        xo, yo = c.INNER_SPACING_X, c.INNER_SPACING_Y
+        return self._get_offset_dims(xo, yo, xo, yo)
+
+    def get_ws_dims(self, c):
+        return self._get_offset_dims(*c.BORDER_OFFSETS)
+
 
 class Split(namedtuple('Split', ['d', 'r'])):
     # direction, ratio and index
@@ -371,8 +383,14 @@ class DefaultTilingScheme(TileScheme):
 # configuration
 class Config:
     def __init__(self):
+
+
+        # left, top, right, bottom
+        self.BORDER_OFFSETS = [25, 30, 25, 20]
+        self.OFF_SCREEN = max(self.BORDER_OFFSETS) + 20
+
         # inner spacing
-        self.INNER_SPACING_X = 8
+        self.INNER_SPACING_X = 10
         self.INNER_SPACING_Y = 10
 
         # sizes
