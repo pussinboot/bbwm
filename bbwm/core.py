@@ -387,7 +387,7 @@ class Config:
 
         # left, top, right, bottom
         self.BORDER_OFFSETS = [25, 30, 25, 20]
-        self.OFF_SCREEN = max(self.BORDER_OFFSETS) + 20
+        self.OFF_SCREEN = max(self.BORDER_OFFSETS) + 50
 
         # inner spacing
         self.INNER_SPACING_X = 10
