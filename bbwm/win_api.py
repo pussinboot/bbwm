@@ -32,6 +32,13 @@ class WinBinds:
             'd': self.workspace.go_down,
         }
 
+        self.swap_dir_funs = {
+            'l': self.workspace.swap_left,
+            'r': self.workspace.swap_right,
+            'u': self.workspace.swap_up,
+            'd': self.workspace.swap_down,
+        }
+
         self.setup_hotkeys()
 
     def tile(self):
@@ -64,6 +71,13 @@ class WinBinds:
         self.move_dir_funs[d]()
         self.refocus()
 
+    def swap_and_focus(self, d):
+        if d not in self.swap_dir_funs:
+            return
+        self.swap_dir_funs[d]()
+        self.resize_wins()
+        self.refocus()
+
     def refocus(self):
         cp = self.workspace.cur_part
         if cp is not None and cp.window is not None:
@@ -85,6 +99,13 @@ class WinBinds:
         keyboard.add_hotkey('windows+right', self.move_and_focus, args=['r'], trigger_on_release=True)
         keyboard.add_hotkey('windows+up', self.move_and_focus, args=['u'], trigger_on_release=True)
         keyboard.add_hotkey('windows+down', self.move_and_focus, args=['d'], trigger_on_release=True)
+
+        # unforunately doing win+shift+[dir] causes weird behavior
+        # sometimes it swaps, sometimes it doesn't
+        keyboard.add_hotkey('ctrl+alt+left', self.swap_and_focus, args=['l'], trigger_on_release=True)
+        keyboard.add_hotkey('ctrl+alt+right', self.swap_and_focus, args=['r'], trigger_on_release=True)
+        keyboard.add_hotkey('ctrl+alt+up', self.swap_and_focus, args=['u'], trigger_on_release=True)
+        keyboard.add_hotkey('ctrl+alt+down', self.swap_and_focus, args=['d'], trigger_on_release=True)
 
         keyboard.add_hotkey('ctrl+alt+q', self.gui.root.destroy)
         keyboard.add_hotkey('ctrl+alt+c', self.draw_parts)
@@ -126,6 +147,13 @@ class TestBinds:
             'r': self.workspace.go_right,
             'u': self.workspace.go_up,
             'd': self.workspace.go_down,
+        }
+
+        self.swap_dir_funs = {
+            'l': self.workspace.swap_left,
+            'r': self.workspace.swap_right,
+            'u': self.workspace.swap_up,
+            'd': self.workspace.swap_down,
         }
 
     def valid_moves(self, d, n):
@@ -324,6 +352,7 @@ class WinWin:
             self.shell.SendKeys('+')
             win32gui.SetForegroundWindow(self.hwnd)
             # update the window 
+            win32gui.ShowWindow(self.hwnd, win32con.SW_RESTORE)
             # no more graphical glitches :)
             win32gui.SetWindowPos(self.hwnd, 0, 0, 0, 0, 0,
                                   win32con.SWP_FRAMECHANGED +

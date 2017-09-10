@@ -96,6 +96,11 @@ class Workspace:
         self.go_up = lambda: self._move('v', -1)
         self.go_down = lambda: self._move('v', 1)
 
+        self.swap_left = lambda: self._swap('h', -1)
+        self.swap_right = lambda: self._swap('h', 1)
+        self.swap_up = lambda: self._swap('v', -1)
+        self.swap_down = lambda: self._swap('v', 1)
+
     def _str_help(self, part, prefix=""):
         tor = ["{}{}".format(prefix, part.__str__())]
         pref = "\t{}".format(prefix)
@@ -177,7 +182,7 @@ class Workspace:
         next_ps = n_ps[new_i::n]
         return next_ps
 
-    def _move(self, d, n):
+    def find_move(self, d, n):
         cp = self.cur_part
         axis = 1 if d == 'v' else 0
 
@@ -194,7 +199,29 @@ class Workspace:
         y = cp.dims[1] + cp.dims[3] * (bool((1 - n) // 2) != bool(axis))
 
         next_ps.sort(key=lambda p: p.dims.distance_to(x, y))
-        self.cur_part = next_ps[0]
+        return next_ps[0]
+
+    def _move(self, d, n):
+        next_part = self.find_move(d, n)
+        if next_part is not None:
+            self.cur_part = next_part
+
+    def _swap_win(self, p1, p2):
+        if p1.window is not None:
+            p1.window = p2.window if p2 is not None else None
+            p1.window.part = p2
+
+    def _swap(self, d, n):
+        next_part = self.find_move(d, n)
+        if next_part is not None:
+            nw, cw = next_part.window, self.cur_part.window
+            next_part.window = cw
+            self.cur_part.window = nw
+            if nw is not None:
+                nw.part = self.cur_part
+            if cw is not None:
+                cw.part = next_part
+            self.cur_part = next_part
 
     def split_h(self, r=0.5, new_win=None):
         np = self.cur_part.split_h(r, new_win)

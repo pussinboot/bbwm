@@ -36,22 +36,22 @@
 
 ;; swapping
 
-#+Up::
+^!Up::
 {
   return
 }
 
-#+Down::
+^!Down::
 {
   return
 }
 
-#+Left::
+^!Left::
 {
   return
 }
 
-#+Right::
+^!Right::
 {
   return
 }
