@@ -249,6 +249,8 @@ class Workspace:
         for p in aff_parts:
             p.resize_from_parent()
 
+        self.tile_scheme.untile(part)
+
     def resize_from_parent(self):
         pass
 

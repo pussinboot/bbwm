@@ -23,8 +23,6 @@ actual gui / window dec & placement
 
 ok.. so it kinda works but 
 still need swaps
-untiling things causing issues.. can't retile
-
 
 # mayb?
 tabs w/in partitions
