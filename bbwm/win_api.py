@@ -9,9 +9,94 @@ import time
 
 
 try:
-    from core import Dims
+    from core import Dims, Workspace
 except:
-    from .core import Dims
+    from .core import Dims, Workspace
+
+class WinBinds:
+    def __init__(self, win_mo, gui):
+        self.gui = gui
+        self.c = self.gui.c
+
+        self.win_methods = win_mo
+        self.win_methods.msg_processor = self.process_msgs
+        self.win_methods.start_monitoring()
+
+        # TODO change for multimonitor setups..
+        self.workspace = Workspace(self.win_methods.monitors[0][1].get_ws_dims(self.c))
+
+        self.move_dir_funs = {
+            'l': self.workspace.go_left,
+            'r': self.workspace.go_right,
+            'u': self.workspace.go_up,
+            'd': self.workspace.go_down,
+        }
+
+        self.setup_hotkeys()
+
+    def tile(self):
+        win = self.win_methods.get_focused_window()
+        if win is not None:
+            self.workspace.tile(win)
+            self.resize_wins()
+                
+    def untile(self):
+        win = self.win_methods.get_focused_window()
+        if win is not None:
+            self.workspace.untile(win.part)
+            self.resize_wins()
+
+    def resize_wins(self):
+        all_parts = self.workspace.find_leaf_parts()
+        for p in all_parts:
+            if p.window is not None:
+                win_dim = p.dims.get_win_dims(self.c)
+                p.window.set_dims(win_dim)
+
+    def move_and_focus(self, d):
+        if d not in self.move_dir_funs:
+            return
+        self.move_dir_funs[d]()
+
+        cp = self.workspace.cur_part
+        if cp is not None and cp.window is not None:
+            cp.window.focus(True)
+
+    def draw_parts(self):
+        self.gui.clear_screen()
+        all_parts = self.workspace.find_leaf_parts()
+        cur_part = self.workspace.cur_part 
+        for p in all_parts:
+            self.gui.draw_border(p.dims.get_win_dims(self.c), cur_part == p)
+
+
+    def setup_hotkeys(self):
+        keyboard.add_hotkey('windows+z', self.tile)
+        keyboard.add_hotkey('windows+x', self.untile)
+
+        keyboard.add_hotkey('windows+left', self.move_and_focus, args=['l'], trigger_on_release=True)
+        keyboard.add_hotkey('windows+right', self.move_and_focus, args=['r'], trigger_on_release=True)
+        keyboard.add_hotkey('windows+up', self.move_and_focus, args=['u'], trigger_on_release=True)
+        keyboard.add_hotkey('windows+down', self.move_and_focus, args=['d'], trigger_on_release=True)
+
+        keyboard.add_hotkey('ctrl+alt+q', self.gui.root.destroy)
+        keyboard.add_hotkey('ctrl+alt+c', self.draw_parts)
+        keyboard.add_hotkey('ctrl+alt+r', print, args=[self.workspace])
+
+
+    def process_msgs(self, msg):
+        # print(msg)
+        if msg[0] == 'focus_win':
+            # will need to choose workspace associated with the monitor
+            w = self.win_methods._get_or_add_win(msg[1], False)
+            if w is not None and w.part is not None:
+                self.workspace.cur_part = w.part
+        elif msg[0] == 'close_win':
+            w = self.win_methods._get_or_add_win(msg[1], False)
+            if w is not None and w.part is not None:
+                self.workspace.untile(w.part)
+                del self.win_methods.hwnd_to_win[msg[1]]
+
 
 
 class TestBinds:
@@ -226,7 +311,7 @@ class WinWin:
         try:
             # need to do stupid thing..
             # see remarks from here: https://msdn.microsoft.com/en-us/library/windows/desktop/ms633539(v=vs.85).aspx
-            self.shell.SendKeys('_')
+            self.shell.SendKeys('+')
             # show it if it is hidden..
             win32gui.ShowWindow(self.hwnd, win32con.SW_RESTORE)
             win32gui.SetForegroundWindow(self.hwnd)
@@ -246,12 +331,14 @@ class WinWin:
 
 
 class WinMethods:
-    def __init__(self, msg_processor):
+    def __init__(self, msg_processor=None):
         self.monitors = []
         self.find_monitors()
-        # need to add some dict to map win handles to win objects
-        # so that our hook can actually .. affect things
+
         self.hwnd_to_win = {}
+
+        if msg_processor is None:
+            msg_processor = lambda m: None
 
         self.msg_processor = msg_processor
 
