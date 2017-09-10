@@ -47,6 +47,9 @@ class WinBinds:
             self.workspace.untile(win.part)
             self.resize_wins()
             self.refocus()
+            # delet the window
+            win.part.window = None
+            del self.win_methods.hwnd_to_win[win.hwnd]
 
     def resize_wins(self):
         all_parts = self.workspace.find_leaf_parts()
@@ -336,7 +339,7 @@ class WinWin:
     def center_on_me(self):
         try:
             d = self.dims
-            win32api.SetCursorPos((d[0] + d[2] // 2, d[1] + d[3] // 2))
+            win32api.SetCursorPos((d.midpoint()))
             return True
         except:
             pass
