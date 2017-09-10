@@ -81,5 +81,6 @@ class BBDraw:
         w = max(min(self.c.INNER_SPACING_X, self.c.INNER_SPACING_Y) - 2, 2)
 
         self.canvas.create_rectangle(x, y, rx, by, outline=outline, width=w)
+
     def clear_screen(self):
         self.canvas.delete('all')

@@ -39,12 +39,14 @@ class WinBinds:
         if win is not None:
             self.workspace.tile(win)
             self.resize_wins()
+            self.refocus()
                 
     def untile(self):
         win = self.win_methods.get_focused_window()
         if win is not None:
             self.workspace.untile(win.part)
             self.resize_wins()
+            self.refocus()
 
     def resize_wins(self):
         all_parts = self.workspace.find_leaf_parts()
@@ -57,7 +59,9 @@ class WinBinds:
         if d not in self.move_dir_funs:
             return
         self.move_dir_funs[d]()
+        self.refocus()
 
+    def refocus(self):
         cp = self.workspace.cur_part
         if cp is not None and cp.window is not None:
             cp.window.focus(True)
@@ -96,6 +100,8 @@ class WinBinds:
             if w is not None and w.part is not None:
                 self.workspace.untile(w.part)
                 del self.win_methods.hwnd_to_win[msg[1]]
+                self.resize_wins()
+                self.refocus()
 
 
 
@@ -256,8 +262,9 @@ class WinWin:
 
     def set_dims(self, new_dims):
         try:
+            # show it if it is hidden..
+            win32gui.ShowWindow(self.hwnd, win32con.SW_RESTORE)
             win32gui.MoveWindow(self.hwnd, *new_dims, False)
-            return True
         except:
             return False
 
@@ -312,9 +319,14 @@ class WinWin:
             # need to do stupid thing..
             # see remarks from here: https://msdn.microsoft.com/en-us/library/windows/desktop/ms633539(v=vs.85).aspx
             self.shell.SendKeys('+')
-            # show it if it is hidden..
-            win32gui.ShowWindow(self.hwnd, win32con.SW_RESTORE)
             win32gui.SetForegroundWindow(self.hwnd)
+            # update the window 
+            # no more graphical glitches :)
+            win32gui.SetWindowPos(self.hwnd, 0, 0, 0, 0, 0,
+                                  win32con.SWP_FRAMECHANGED +
+                                  win32con.SWP_NOMOVE +
+                                  win32con.SWP_NOSIZE +
+                                  win32con.SWP_NOZORDER)
             if also_center:
                 return self.center_on_me()
             return True
