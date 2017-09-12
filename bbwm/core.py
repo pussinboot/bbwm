@@ -456,6 +456,7 @@ class Config:
         # gui stuff
 
         self.CLEAR_TIMEOUT = 333
+        self.DEFAULT_OPACITY = 0.77
 
         # colors
         self.BORDER_HIGHLIGHT_COLOR = 'gray'
