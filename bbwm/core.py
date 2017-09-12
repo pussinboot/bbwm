@@ -109,8 +109,10 @@ class Workspace:
         return tor
 
     def __str__(self):
+        top_line = '-'*15
+        next_line = '(cur {})'.format(self.cur_part)
         all_str = self._str_help(self.children[0])
-        return "\n".join(all_str)
+        return '{}\n{}\n{}'.format(top_line, next_line, "\n".join(all_str))
 
     def __iter__(self):
         for b in self.children:
@@ -240,13 +242,29 @@ class Workspace:
         if np is not None:
             self.cur_part = np
 
+    def rotate(self, part=None):
+        if part is None:
+            part = self.cur_part
+        if part.parent is None:
+            return
+        pp = part.parent
+        if pp.split is None:
+            return
+        new_d = 'h' if pp.split.d == 'v' else 'v'
+        pp.split = Split(new_d, pp.split.r)
+
+        aff_parts = self._traverse()
+
+        for p in aff_parts:
+            p.resize_from_parent()
+
     def untile(self, part=None):
         if part is None:
             cp = self.cur_part
         else:
             cp = part
         if cp.parent is None:
-            return
+            return cp
         if cp.index >= len(cp.parent.children):
             return
 
@@ -263,7 +281,7 @@ class Workspace:
                 c.index = i
             next_cur = cp.parent.children[new_i]
 
-        if part == self.cur_part:
+        if cp == self.cur_part:
             # if the partition we untiled was current
             # reassign to closest leaf partition
             if next_cur.is_empty:
@@ -279,6 +297,7 @@ class Workspace:
             p.resize_from_parent()
 
         self.tile_scheme.untile(part)
+        return cp
 
     def resize_from_parent(self):
         pass
@@ -423,7 +442,6 @@ class DefaultTilingScheme(TileScheme):
 class Config:
     def __init__(self):
 
-
         # left, top, right, bottom
         self.BORDER_OFFSETS = [25, 30, 25, 20]
         self.OFF_SCREEN = max(self.BORDER_OFFSETS) + 50
@@ -435,12 +453,17 @@ class Config:
         # sizes
         self.CURSOR_SIZE = 20
 
+        # gui stuff
+
+        self.CLEAR_TIMEOUT = 333
+
         # colors
         self.BORDER_HIGHLIGHT_COLOR = 'gray'
         self.BORDER_COLOR = 'black'
         self.CURSOR_COLOR = 'blue'
 
         self.FAKE_WIN_COLOR = 'red'
+
 
 
 if __name__ == '__main__':

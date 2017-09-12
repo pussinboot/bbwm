@@ -16,7 +16,7 @@ for 1st one i can handle it in tiling scheme
 
 # gotta do
 actual gui / window dec
-manual horiz/vert splits
+
 changing partition schemes on the fly / promoting partitions to workspaces
 using gui to edit split ratio
 more partition schemes..
