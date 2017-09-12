@@ -1,18 +1,50 @@
 ;; run this script to prevent default windows actions from happening :(
 
-;; tiling
+#SingleInstance force
 
+;;;;;;;;;;;;
+;; tiling ;;
+;;;;;;;;;;;;
+
+;; tile w/ default scheme
 #Z::
 {
   return
 }
 
+;; untile
 #X::
 {
   return
 }
 
-;; movement
+;; tile horiz
+#A::
+{
+  return
+}
+
+;; tile vert
+#S::
+{
+  return
+}
+
+;; fake tile horiz
+#Q::
+{
+  return
+}
+
+;; fake tile vert
+#W::
+{
+  return
+}
+
+;;;;;;;;;;;;;;
+;; movement ;;
+;;;;;;;;;;;;;;
 
 #Up::
 {
@@ -34,7 +66,9 @@
   return
 }
 
-;; swapping
+;;;;;;;;;;;;;;
+;; swapping ;;
+;;;;;;;;;;;;;;
 
 ^!Up::
 {
