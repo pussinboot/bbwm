@@ -61,6 +61,7 @@ class BBDraw:
 
         self.root = root
         self.root.title('bbwm')
+        self.root.attributes('-alpha', self.c.DEFAULT_OPACITY)
 
         self.width, self.height = base_dims.w, base_dims.h
         w, h = self.width + 2 * c.OFF_SCREEN, self.height + 2 * c.OFF_SCREEN
@@ -69,6 +70,8 @@ class BBDraw:
 
         self.canvas = tk.Canvas(root, width=w, height=h, bg="#0DEAD0")
         self.canvas.pack()
+
+        self._draw_job = None
 
     def draw_border(self, dims, current):
         outline = self.c.BORDER_HIGHLIGHT_COLOR if current else self.c.BORDER_COLOR
@@ -84,3 +87,35 @@ class BBDraw:
 
     def clear_screen(self):
         self.canvas.delete('all')
+
+    def _fade(self, _to, step, delay, _finally=None):
+        progress = self.root.attributes('-alpha')
+        progress += step
+        self.root.attributes('-alpha', progress)
+        if (step < 0 and progress <= _to) or (step >= 0 and progress >= _to):
+            if _finally is not None:
+                self._draw_job = _finally()
+            return
+        self._draw_job = self.root.after(delay, lambda: self._fade(_to, step, delay, _finally))
+
+    def fade_out(self):
+        _from, _to = self.c.DEFAULT_OPACITY, 0
+        delay = self.c.CLEAR_TIMEOUT / 5
+        step = -_from / 5
+        delay = int(delay)
+        self._fade(_to, step, delay)
+
+    def fade_in(self):
+        if self._draw_job is not None:
+            self.root.after_cancel(self._draw_job)
+        _from, _to = 0, self.c.DEFAULT_OPACITY
+        delay = self.c.CLEAR_TIMEOUT / 5
+        step = _to / 5
+        delay = int(delay)
+        self._fade(_from, _to, step, delay, lambda: self.root.after(self.c.CLEAR_TIMEOUT, self.fade_out))
+
+    def fade_immediately(self):
+        if self._draw_job is not None:
+            self.root.after_cancel(self._draw_job)
+        self.root.attributes('-alpha', self.c.DEFAULT_OPACITY)
+        self.root.after(self.c.CLEAR_TIMEOUT, self.fade_out)

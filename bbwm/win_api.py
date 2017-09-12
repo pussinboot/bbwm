@@ -124,7 +124,7 @@ class WinBinds:
         cur_part = self.workspace.cur_part 
         for p in all_parts:
             self.gui.draw_border(p.dims.get_win_dims(self.c), cur_part == p)
-        self.gui.root.after(self.c.CLEAR_TIMEOUT, self.gui.clear_screen)
+        self.gui.fade_immediately()
 
 
     def setup_hotkeys(self):
