@@ -47,6 +47,8 @@ class WinBinds:
             self.workspace.tile(win)
             self.resize_wins()
             self.refocus()
+            # gui
+            self.draw_parts()
 
     def tile_dir(self, d, find_win=True):
         win = None
@@ -60,16 +62,30 @@ class WinBinds:
             self.workspace.split_h(new_win=win)
         self.resize_wins()
         self.refocus()
+        # gui
+        self.draw_parts()
+
+    def rotate(self):
+        self.workspace.rotate()
+        self.resize_wins()
+        self.refocus()
+        # gui
+        self.draw_parts()
 
     def untile(self):
-        win = self.win_methods.get_focused_window()
+        untiled_part = self.workspace.untile()
+        if untiled_part is None:
+            return
+        self.resize_wins()
+        self.refocus()
+        win = untiled_part.window
         if win is not None:
-            self.workspace.untile(win.part)
-            self.resize_wins()
-            self.refocus()
             # delet the window
-            win.part.window = None
             del self.win_methods.hwnd_to_win[win.hwnd]
+            if win.part is not None:
+                win.part.window = None
+        # gui
+        self.draw_parts()
 
     def resize_wins(self):
         all_parts = self.workspace.find_leaf_parts()
@@ -83,6 +99,8 @@ class WinBinds:
             return
         self.move_dir_funs[d]()
         self.refocus()
+        # gui
+        self.draw_parts()
 
     def swap_and_focus(self, d):
         if d not in self.swap_dir_funs:
@@ -106,12 +124,17 @@ class WinBinds:
         cur_part = self.workspace.cur_part 
         for p in all_parts:
             self.gui.draw_border(p.dims.get_win_dims(self.c), cur_part == p)
+        self.gui.root.after(self.c.CLEAR_TIMEOUT, self.gui.clear_screen)
 
 
     def setup_hotkeys(self):
         keyboard.add_hotkey('windows+z', self.tile)
+
         keyboard.add_hotkey('windows+a', self.tile_dir, args=['h'])
         keyboard.add_hotkey('windows+s', self.tile_dir, args=['v'])
+
+        keyboard.add_hotkey('windows+d', self.rotate)
+
         keyboard.add_hotkey('windows+q', self.tile_dir, args=['h', False])
         keyboard.add_hotkey('windows+w', self.tile_dir, args=['v', False])
 
@@ -130,7 +153,7 @@ class WinBinds:
         keyboard.add_hotkey('ctrl+alt+down', self.swap_and_focus, args=['d'], trigger_on_release=True)
 
         keyboard.add_hotkey('ctrl+alt+q', self.gui.root.destroy)
-        keyboard.add_hotkey('ctrl+alt+c', self.draw_parts)
+        keyboard.add_hotkey('windows+c', self.draw_parts)
         keyboard.add_hotkey('ctrl+alt+r', print, args=[self.workspace])
 
 
@@ -148,7 +171,6 @@ class WinBinds:
                 del self.win_methods.hwnd_to_win[msg[1]]
                 self.resize_wins()
                 self.refocus()
-
 
 
 class TestBinds:

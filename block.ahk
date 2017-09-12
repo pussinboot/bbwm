@@ -30,6 +30,12 @@
   return
 }
 
+;; rotate tile type
+#D::
+{
+  return
+}
+
 ;; fake tile horiz
 #Q::
 {
@@ -86,6 +92,15 @@
 }
 
 ^!Right::
+{
+  return
+}
+
+;;;;;;;;;
+;; gui ;;
+;;;;;;;;;
+
+#C::
 {
   return
 }
