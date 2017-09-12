@@ -227,11 +227,13 @@ class Workspace:
         np = self.cur_part.split_h(r, new_win)
         if np is not None:
             self.cur_part = np
+        self.tile_scheme.manual_tile(np, new_win)
 
     def split_v(self, r=0.5, new_win=None):
         np = self.cur_part.split_v(r, new_win)
         if np is not None:
             self.cur_part = np
+        self.tile_scheme.manual_tile(np, new_win)
 
     def tile(self, new_win=None):
         np = self.tile_scheme.tile(self.cur_part, new_win)
@@ -378,6 +380,10 @@ class TileScheme:
         return
 
     @abc.abstractmethod
+    def manual_tile(self, part, new_win=None):
+        return
+
+    @abc.abstractmethod
     def untile(self, part):
         return
 
@@ -404,6 +410,10 @@ class DefaultTilingScheme(TileScheme):
         if np is not None:
             self.tile_count += 1
             return np
+
+    def manual_tile(self, part, new_win=None):
+        if part is not None:
+            self.tile_count += 1
 
     def untile(self, part, new_win=None):
         self.tile_count = max(0, self.tile_count - 1)

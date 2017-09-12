@@ -1,11 +1,14 @@
-tofo
+# requirements
+keyboard at least 0.11.0
+
+# tofo
 
 need to be able to switch the scheme on the fly, which means recomputing all spaces
 
 so.. default add win to tile > can rearrange all at once
 add "workspace" -> the partition gets its own tiling scheme
 
-# mayb?
+## mayb?
 tabs w/in partitions
 
 how do i do equal splits and constraints.. 

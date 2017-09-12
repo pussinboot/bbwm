@@ -47,7 +47,20 @@ class WinBinds:
             self.workspace.tile(win)
             self.resize_wins()
             self.refocus()
-                
+
+    def tile_dir(self, d, find_win=True):
+        win = None
+        if find_win:
+            win = self.win_methods.get_focused_window()
+            if win is None:
+                return
+        if d == 'v':
+            self.workspace.split_v(new_win=win)
+        else:
+            self.workspace.split_h(new_win=win)
+        self.resize_wins()
+        self.refocus()
+
     def untile(self):
         win = self.win_methods.get_focused_window()
         if win is not None:
@@ -80,8 +93,12 @@ class WinBinds:
 
     def refocus(self):
         cp = self.workspace.cur_part
-        if cp is not None and cp.window is not None:
-            cp.window.focus(True)
+        if cp is not None:
+            if cp.window is not None:
+                cp.window.focus(True)
+            else:
+                # move mouse to empty partition
+                self.win_methods.set_mouse_pos(cp.dims)
 
     def draw_parts(self):
         self.gui.clear_screen()
@@ -93,6 +110,11 @@ class WinBinds:
 
     def setup_hotkeys(self):
         keyboard.add_hotkey('windows+z', self.tile)
+        keyboard.add_hotkey('windows+a', self.tile_dir, args=['h'])
+        keyboard.add_hotkey('windows+s', self.tile_dir, args=['v'])
+        keyboard.add_hotkey('windows+q', self.tile_dir, args=['h', False])
+        keyboard.add_hotkey('windows+w', self.tile_dir, args=['v', False])
+
         keyboard.add_hotkey('windows+x', self.untile)
 
         keyboard.add_hotkey('windows+left', self.move_and_focus, args=['l'], trigger_on_release=True)
@@ -441,6 +463,9 @@ class WinMethods:
             pass
         except win32api.error:
             pass
+
+    def set_mouse_pos(self, dims):
+        win32api.SetCursorPos((dims.midpoint()))
 
     def _intercept_msgs(self):
         spy = WinTaskIcon()
