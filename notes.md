@@ -4,6 +4,9 @@ keyboard at least 0.11.0
 # tofo
 
 need to be able to switch the scheme on the fly, which means recomputing all spaces
+equally spaced
+want to do - activate shortcut - lists indices over all your currently tiled windows 
+hit index and switcheroo
 
 so.. default add win to tile > can rearrange all at once
 add "workspace" -> the partition gets its own tiling scheme
@@ -19,4 +22,7 @@ actual gui / window dec
 
 changing partition schemes on the fly / promoting partitions to workspaces
 using gui to edit split ratio
+    this will require me to remove root.overrideredirect(True) temporarily
+
 more partition schemes..
+multiple workspaces
