@@ -150,6 +150,11 @@ class Workspace:
             root = self
         return self._traverse(root, lambda p: p.is_empty)
 
+    def find_all_splits(self, root=None):
+        if root is None:
+            root = self
+        return self._traverse(root, lambda p: p.split is not None)
+
     def find_neighbors(self, d, root=None):
         if root is None:
             root = self.cur_part

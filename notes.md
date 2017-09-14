@@ -23,6 +23,8 @@ actual gui / window dec
 changing partition schemes on the fly / promoting partitions to workspaces
 using gui to edit split ratio
     this will require me to remove root.overrideredirect(True) temporarily
+		maybe not actually
+    traverse and find all splits, then drawfun needs to take split as input and keep track of it in order to reset?.. so traverse to get all parents w/ non-empty splits
 
 more partition schemes..
 multiple workspaces

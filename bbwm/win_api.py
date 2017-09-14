@@ -126,6 +126,13 @@ class WinBinds:
             self.gui.draw_border(p.dims.get_win_dims(self.c), cur_part == p)
         self.gui.fade_immediately()
 
+    def draw_splits(self):
+        self.gui.clear_screen()
+        self.gui.rdy_to_split()
+        all_parts_with_splits = self.workspace.find_all_splits()
+        for p in all_parts_with_splits:
+            self.gui.draw_split(p.dims, p.split)
+
 
     def setup_hotkeys(self):
         keyboard.add_hotkey('windows+z', self.tile)
@@ -133,7 +140,8 @@ class WinBinds:
         keyboard.add_hotkey('windows+a', self.tile_dir, args=['h'])
         keyboard.add_hotkey('windows+s', self.tile_dir, args=['v'])
 
-        keyboard.add_hotkey('windows+d', self.rotate)
+        # keyboard.add_hotkey('windows+d', self.rotate)
+        keyboard.add_hotkey('windows+d', self.draw_splits)
 
         keyboard.add_hotkey('windows+q', self.tile_dir, args=['h', False])
         keyboard.add_hotkey('windows+w', self.tile_dir, args=['v', False])
