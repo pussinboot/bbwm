@@ -85,6 +85,33 @@ class BBDraw:
 
         self.canvas.create_rectangle(x, y, rx, by, outline=outline, width=w)
 
+    def rdy_to_split(self):
+        self.root.attributes('-alpha', self.c.DEFAULT_OPACITY)
+
+    def draw_split(self, dims, split):
+        d_i = int(split.d == 'h')
+        is_x, is_y = self.c.INNER_SPACING_X, self.c.INNER_SPACING_Y
+        
+        x, y, w, h = dims.x, dims.y, dims.w, dims.h
+        x, y = x + self.c.OFF_SCREEN + is_x / 2, y + self.c.OFF_SCREEN + is_y / 2
+        w, h = w - is_x, h - is_y
+
+        line_width = [is_x, is_y][d_i]
+
+        rx = x + int((w) * split.r) * (d_i) + (w) * (1 - d_i)
+        by = y + int((h) * split.r) * (1 - d_i) + (h) * (d_i)
+
+        if d_i:
+            x = rx
+        else:
+            y = by
+
+        new_line = self.canvas.create_line(x, y, rx, by,
+                   fill=self.c.BORDER_COLOR,
+                   activefill=self.c.BORDER_HIGHLIGHT_COLOR,
+                   width=line_width,
+                   )
+
     def clear_screen(self):
         self.canvas.delete('all')
 
