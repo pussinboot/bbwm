@@ -79,17 +79,18 @@ class BBDraw:
             self.canvas.tag_bind(d, "<ButtonRelease-1>", self.drag_end)
             self.canvas.tag_bind(d, "<B1-Motion>", self.drag)
 
-    def draw_border(self, dims, current):
-        outline = self.c.BORDER_HIGHLIGHT_COLOR if current else self.c.BORDER_COLOR
-
+    def _dims_to_canvas_coords(self, dims):
         x, y, w, h = dims.x, dims.y, dims.w, dims.h
         x, y = x + self.c.OFF_SCREEN, y + self.c.OFF_SCREEN
         rx = x + w
         by = y + h
+        return x, y, rx, by
 
+    def draw_border(self, dims, current):
+        outline = self.c.BORDER_HIGHLIGHT_COLOR if current else self.c.BORDER_COLOR
         w = max(min(self.c.INNER_SPACING_X, self.c.INNER_SPACING_Y) - 2, 2)
 
-        self.canvas.create_rectangle(x, y, rx, by, outline=outline, width=w)
+        self.canvas.create_rectangle(*self._dims_to_canvas_coords(dims), outline=outline, width=w)
 
     def rdy_to_split(self):
         self.root.attributes('-alpha', self.c.DEFAULT_OPACITY)
@@ -167,25 +168,40 @@ class BBDraw:
         self._drag_data["y"] = event.y
         self._drag_data["dir"] = self.canvas.gettags(item)[0]
 
+        self.canvas.tag_raise(item)
+
     def drag_end(self, event):
         if self._drag_data["item"] is None:
             return
         self._drag_data = {"x": 0, "y": 0, "item": None, 'dir': None}
+        # do something here
 
     def drag(self, event):
-        # may need to incorporate bounds of the part so as to not go too far
         d = self._drag_data["dir"]
+        the_line = self._drag_data["item"]
+        if the_line not in self.line_to_part:
+            return
+        assoc_part = self.line_to_part[the_line]
+        lx, ty, rx, by = self._dims_to_canvas_coords(assoc_part.dims)
 
         if d == 'h':
+            if event.x < lx:
+                event.x = lx
+            elif event.x > rx:
+                event.x = rx
             delta_x = event.x - self._drag_data["x"]
             delta_y = 0
             self._drag_data["x"] = event.x
         elif d == 'v':
+            if event.y < ty:
+                event.y = ty
+            elif event.y > by:
+                event.y = by
             delta_x = 0
             delta_y = event.y - self._drag_data["y"]
             self._drag_data["y"] = event.y
         else:
             return
 
-        self.canvas.move(self._drag_data["item"], delta_x, delta_y)
+        self.canvas.move(the_line, delta_x, delta_y)
 
