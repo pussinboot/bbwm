@@ -73,6 +73,7 @@ class BBDraw:
         self._drag_data = {"x": 0, "y": 0, "item": None, 'dir': None}
 
         self.line_to_part = {}
+        self.resplit_fun = None
 
         for d in ['h', 'v']:
             self.canvas.tag_bind(d, "<ButtonPress-1>", self.drag_begin)
@@ -171,10 +172,24 @@ class BBDraw:
         self.canvas.tag_raise(item)
 
     def drag_end(self, event):
-        if self._drag_data["item"] is None:
+        the_line = self._drag_data["item"]
+        if (the_line is None) or (the_line not in self.line_to_part):
             return
+        if self.resplit_fun is not None:
+            assoc_part = self.line_to_part[the_line]
+            lx, ty, rx, by = self._dims_to_canvas_coords(assoc_part.dims)
+            # compute new split ratio
+            if self._drag_data["dir"] == 'h':
+                new_r = (self._drag_data["x"] - lx) / (rx - lx)
+            elif self._drag_data["dir"] == 'v':
+                new_r = (self._drag_data["y"] - ty) / (by - ty)
+            else:
+                return
+            new_r = max(min(new_r, 1 - self.c.MIN_RATIO), self.c.MIN_RATIO)
+            # update it with the fun
+            self.resplit_fun(assoc_part, new_r)
+
         self._drag_data = {"x": 0, "y": 0, "item": None, 'dir': None}
-        # do something here
 
     def drag(self, event):
         d = self._drag_data["dir"]

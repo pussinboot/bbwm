@@ -263,6 +263,16 @@ class Workspace:
         for p in aff_parts:
             p.resize_from_parent()
 
+    def resplit(self, part, new_r):
+        if part.split is None:
+            return
+        part.split = Split(part.split.d, new_r)
+
+        aff_parts = self._traverse()
+
+        for p in aff_parts:
+            p.resize_from_parent()
+
     def untile(self, part=None):
         if part is None:
             cp = self.cur_part
@@ -450,6 +460,8 @@ class Config:
         # left, top, right, bottom
         self.BORDER_OFFSETS = [25, 30, 25, 20]
         self.OFF_SCREEN = max(self.BORDER_OFFSETS) + 50
+
+        self.MIN_RATIO = 0.05
 
         # inner spacing
         self.INNER_SPACING_X = 10
