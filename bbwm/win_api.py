@@ -146,8 +146,8 @@ class WinBinds:
         keyboard.add_hotkey('windows+a', self.tile_dir, args=['h'])
         keyboard.add_hotkey('windows+s', self.tile_dir, args=['v'])
 
-        # keyboard.add_hotkey('windows+d', self.rotate)
-        keyboard.add_hotkey('windows+d', self.draw_splits)
+        keyboard.add_hotkey('windows+d', self.rotate)
+        keyboard.add_hotkey('windows+f', self.draw_splits)
 
         keyboard.add_hotkey('windows+q', self.tile_dir, args=['h', False])
         keyboard.add_hotkey('windows+w', self.tile_dir, args=['v', False])

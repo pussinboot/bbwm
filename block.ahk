@@ -36,6 +36,12 @@
   return
 }
 
+;; edit split ratios
+#F::
+{
+  return
+}
+
 ;; fake tile horiz
 #Q::
 {
