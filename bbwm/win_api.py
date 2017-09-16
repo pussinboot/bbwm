@@ -131,8 +131,7 @@ class WinBinds:
         self.gui.rdy_to_split()
         all_parts_with_splits = self.workspace.find_all_splits()
         for p in all_parts_with_splits:
-            self.gui.draw_split(p.dims, p.split)
-
+            self.gui.draw_split(p)
 
     def setup_hotkeys(self):
         keyboard.add_hotkey('windows+z', self.tile)
