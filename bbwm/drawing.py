@@ -17,7 +17,6 @@ class TestDraw:
 
         self.root.protocol('WM_DELETE_WINDOW', self.kill)
 
-
     def get_bbox(self, dims):
         x, y, w, h = dims.x, dims.y, dims.w, dims.h
         lx, rx = x + self.c.INNER_SPACING_X, x + w - self.c.INNER_SPACING_X
@@ -53,7 +52,6 @@ class TestDraw:
         self.root.destroy()
 
 
-
 class BBDraw:
     # i guess this is per monitor -.-
     def __init__(self, root, base_dims, c):
@@ -72,6 +70,14 @@ class BBDraw:
         self.canvas.pack()
 
         self._draw_job = None
+        self._drag_data = {"x": 0, "y": 0, "item": None, 'dir': None}
+
+        self.line_to_part = {}
+
+        for d in ['h', 'v']:
+            self.canvas.tag_bind(d, "<ButtonPress-1>", self.drag_begin)
+            self.canvas.tag_bind(d, "<ButtonRelease-1>", self.drag_end)
+            self.canvas.tag_bind(d, "<B1-Motion>", self.drag)
 
     def draw_border(self, dims, current):
         outline = self.c.BORDER_HIGHLIGHT_COLOR if current else self.c.BORDER_COLOR
@@ -88,7 +94,8 @@ class BBDraw:
     def rdy_to_split(self):
         self.root.attributes('-alpha', self.c.DEFAULT_OPACITY)
 
-    def draw_split(self, dims, split):
+    def draw_split(self, part):
+        dims, split = part.dims, part.split
         d_i = int(split.d == 'h')
         is_x, is_y = self.c.INNER_SPACING_X, self.c.INNER_SPACING_Y
         
@@ -110,10 +117,15 @@ class BBDraw:
                    fill=self.c.BORDER_COLOR,
                    activefill=self.c.BORDER_HIGHLIGHT_COLOR,
                    width=line_width,
+                   tags=split.d
                    )
+
+        self.line_to_part[new_line] = part
 
     def clear_screen(self):
         self.canvas.delete('all')
+        del self.line_to_part
+        self.line_to_part = {}
 
     def _fade(self, _to, step, delay, _finally=None):
         progress = self.root.attributes('-alpha')
@@ -146,3 +158,34 @@ class BBDraw:
             self.root.after_cancel(self._draw_job)
         self.root.attributes('-alpha', self.c.DEFAULT_OPACITY)
         self.root.after(self.c.CLEAR_TIMEOUT, self.fade_out)
+
+    def drag_begin(self, event):
+        # record the item and its location
+        item = self.canvas.find_closest(self.canvas.canvasx(event.x), self.canvas.canvasy(event.y), halo=5)[0]
+        self._drag_data["item"] = item
+        self._drag_data["x"] = event.x
+        self._drag_data["y"] = event.y
+        self._drag_data["dir"] = self.canvas.gettags(item)[0]
+
+    def drag_end(self, event):
+        if self._drag_data["item"] is None:
+            return
+        self._drag_data = {"x": 0, "y": 0, "item": None, 'dir': None}
+
+    def drag(self, event):
+        # may need to incorporate bounds of the part so as to not go too far
+        d = self._drag_data["dir"]
+
+        if d == 'h':
+            delta_x = event.x - self._drag_data["x"]
+            delta_y = 0
+            self._drag_data["x"] = event.x
+        elif d == 'v':
+            delta_x = 0
+            delta_y = event.y - self._drag_data["y"]
+            self._drag_data["y"] = event.y
+        else:
+            return
+
+        self.canvas.move(self._drag_data["item"], delta_x, delta_y)
+
