@@ -17,6 +17,7 @@ class WinBinds:
     def __init__(self, win_mo, gui):
         self.gui = gui
         self.c = self.gui.c
+        self.gui.resplit_fun = self.resplit
 
         self.win_methods = win_mo
         self.win_methods.msg_processor = self.process_msgs
@@ -69,6 +70,12 @@ class WinBinds:
         self.workspace.rotate()
         self.resize_wins()
         self.refocus()
+        # gui
+        self.draw_parts()
+
+    def resplit(self, part, new_r):
+        self.workspace.resplit(part, new_r)
+        self.resize_wins()
         # gui
         self.draw_parts()
 
@@ -175,7 +182,7 @@ class WinBinds:
             w = self.win_methods._get_or_add_win(msg[1], False)
             if w is not None and w.part is not None:
                 self.workspace.untile(w.part)
-                
+
                 win = w.part.window
                 if win is not None:
                     if win.part is not None:
