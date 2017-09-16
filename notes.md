@@ -28,7 +28,3 @@ using gui to edit split ratio
 
 more partition schemes..
 multiple workspaces
-
-# bugs
-(1400, 'SetForegroundWindow', 'Invalid window handle.')
-closing the last window doesn't remove it?

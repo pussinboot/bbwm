@@ -175,9 +175,16 @@ class WinBinds:
             w = self.win_methods._get_or_add_win(msg[1], False)
             if w is not None and w.part is not None:
                 self.workspace.untile(w.part)
+                
+                win = w.part.window
+                if win is not None:
+                    if win.part is not None:
+                        win.part.window = None
+
                 del self.win_methods.hwnd_to_win[msg[1]]
                 self.resize_wins()
                 self.refocus()
+
 
 
 class TestBinds:
