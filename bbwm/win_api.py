@@ -360,7 +360,7 @@ class WinWin:
         try:
             # show it if it is hidden..
             win32gui.ShowWindow(self.hwnd, win32con.SW_RESTORE)
-            win32gui.MoveWindow(self.hwnd, *new_dims, False)
+            win32gui.MoveWindow(self.hwnd, *new_dims, True)
         except:
             return False
 
@@ -416,14 +416,7 @@ class WinWin:
             # see remarks from here: https://msdn.microsoft.com/en-us/library/windows/desktop/ms633539(v=vs.85).aspx
             self.shell.SendKeys('+')
             win32gui.SetForegroundWindow(self.hwnd)
-            # update the window 
-            win32gui.ShowWindow(self.hwnd, win32con.SW_RESTORE)
-            # no more graphical glitches :)
-            win32gui.SetWindowPos(self.hwnd, 0, 0, 0, 0, 0,
-                                  win32con.SWP_FRAMECHANGED +
-                                  win32con.SWP_NOMOVE +
-                                  win32con.SWP_NOSIZE +
-                                  win32con.SWP_NOZORDER)
+            win32gui.ShowWindow(self.hwnd, win32con.SW_RESTORE)            
             if also_center:
                 return self.center_on_me()
             return True
