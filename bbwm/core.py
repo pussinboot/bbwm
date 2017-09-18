@@ -15,17 +15,45 @@ class Dims(namedtuple('Dims', ['x', 'y', 'w', 'h'])):
         d2 = Dims(self.x + new_w, self.y, self.w - new_w, self.h)
         return d1, d2
 
+    def split_h_n(self, n):
+        if n <= 2:
+            return [self.split_h()]
+        new_w = self.w // n
+        tor = []
+        for i in range(n - 1):
+            tor.append(Dims(self.x + i * new_w, self.y, new_w, self.h))
+        final_w = self.w - (n - 1) * new_w # for rounding errors
+        tor.append(Dims(self.x + self.w - final_w, self.y, final_w, self.h))
+        return tor
+
     def split_v(self, r=0.5):
         new_h = int(self.h * r)
         d1 = Dims(self.x, self.y, self.w, new_h)
         d2 = Dims(self.x, self.y + new_h, self.w, self.h - new_h)
         return d1, d2
 
+    def split_v_n(self, n):
+        if n <= 2:
+            return [self.split_v()]
+        new_h = self.h // n
+        tor = []
+        for i in range(n - 1):
+            tor.append(Dims(self.x, self.y + i * new_h, self.w, new_h))
+        final_h = self.w - (n - 1) * new_h # for rounding errors
+        tor.append(Dims(self.x, self.y + self.h - final_h, self.w, final_h))
+        return tor
+
     def resize(self, d, r, i):
         if d == 'v':
             return self.split_v(r)[i]
         else:
             return self.split_h(r)[i]
+
+    def resize_n(self, d, n, i):
+        if d == 'v':
+            return self.split_v_n(n)[i]
+        else:
+            return self.split_h_n(n)[i]
 
     def midpoint(self):
         return self.x + (self.w // 2), self.y + (self.h // 2)
@@ -54,18 +82,21 @@ class Dims(namedtuple('Dims', ['x', 'y', 'w', 'h'])):
         return self._get_offset_dims(*c.BORDER_OFFSETS)
 
 
-class Split(namedtuple('Split', ['d', 'r'])):
+class Split(namedtuple('Split', ['d', 'r', 't'])):
     # direction, ratio and index
     # direction can be either
     # h - horizontal
     # v - vertical
     # n - neither
     # ratio is a float between 0 and 1
+    # t = type
     __slots__ = ()
 
     def __str__(self):
         return 'split : (d: {}, r: {:01.3f})'.format(self.d, self.r)
 
+    def __new__(cls, d, r, t=None):
+        return super(Split, cls).__new__(cls, d, r, t)
 
 # boxing
 class Workspace:
@@ -74,7 +105,7 @@ class Workspace:
         self.base_dims = base_dims
 
         if tile_scheme is None:
-            tile_scheme = DefaultTilingScheme()
+            tile_scheme = HorizontalTilingScheme()
         self.tile_scheme = tile_scheme
 
         if first_child is None:
@@ -256,7 +287,7 @@ class Workspace:
         if pp.split is None:
             return
         new_d = 'h' if pp.split.d == 'v' else 'v'
-        pp.split = Split(new_d, pp.split.r)
+        pp.split = Split(new_d, pp.split.r, pp.split.t)
 
         aff_parts = self._traverse()
 
@@ -370,8 +401,12 @@ class Partition:
             return
         if self.parent.split is None:
             return
-        d, r = self.parent.split.d, self.parent.split.r
-        self.dims = self.parent.dims.resize(d, r, self.index)
+        # need to check split type..
+        split = self.parent.split
+        if split.t is None:
+            self.dims = self.parent.dims.resize(split.d, split.r, self.index)
+        elif split.t == 'equal':
+            self.dims = self.parent.dims.resize_n(split.d, split.r, self.index)
 
     def _split(self, d, r, new_win):
         if d == 'h':
@@ -394,6 +429,30 @@ class Partition:
         if new_win is None:
             return p1
         return p2
+
+    def _multi_split(self, d, new_win):
+        if self.parent is None:
+            return self._split(d, 0.5, new_win)
+        if d == 'h':
+            sf = self.parent.dims.split_h_n
+        elif d == 'v':
+            sf = self.parent.dims.split_v_n
+        else:
+            # adding tabs?
+            return
+        n = len(self.parent.children) + 1
+        new_dims = sf(n)
+
+        for i, part in enumerate(self.parent.children):
+            part.dims = new_dims[i]
+
+        new_part = Partition(self.parent, new_dims[-1], n - 1, new_win)
+        self.parent.children.append(new_part)
+        self.parent.split = Split(d, n, 'equal')
+
+        # if new_win is not None:
+        return new_part
+        # otherwise return last non_empty leaf node
 
     def split_h(self, r=0.5, new_win=None):
         return self._split('h', r, new_win)
@@ -452,7 +511,27 @@ class DefaultTilingScheme(TileScheme):
     def untile(self, part, new_win=None):
         self.tile_count = max(0, self.tile_count - 1)
 
+class HorizontalTilingScheme(TileScheme):
+    def __init__(self):
+        super().__init__()
 
+    def tile(self, part, new_win=None):
+        if new_win is not None:
+            if new_win.part is not None:
+                # don't retile
+                return
+            elif part.window is None:
+                # first add to current partition if it's empty
+                part.window = new_win
+                new_win.part = part
+                return
+        return part._multi_split('h', new_win)
+
+    def manual_tile(self, part, new_win=None):
+        pass
+
+    def untile(self, part, new_win=None):
+        pass
 # configuration
 class Config:
     def __init__(self):
@@ -474,7 +553,7 @@ class Config:
 
         self.CLEAR_TIMEOUT = 333
         self.DEFAULT_OPACITY = 0.77
-        self.PRETTY_WINS = True
+        self.PRETTY_WINS = False
 
         # colors
         self.TRANSPARENT_COLOR = '#0DEAD0'

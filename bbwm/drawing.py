@@ -49,6 +49,8 @@ class BBDraw:
 
     def draw_split(self, part):
         dims, split = part.dims, part.split
+        if split.t is not None: # for now we will not draw equal spaced splits
+            return
         d_i = int(split.d == 'h')
         is_x, is_y = self.c.INNER_SPACING_X, self.c.INNER_SPACING_Y
         
@@ -70,7 +72,7 @@ class BBDraw:
                    fill=self.c.BORDER_COLOR,
                    activefill=self.c.BORDER_HIGHLIGHT_COLOR,
                    width=line_width,
-                   tags=split.d
+                   tags=(split.d if split.t is None else '')
                    )
 
         self.line_to_part[new_line] = part
