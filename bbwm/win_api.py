@@ -57,7 +57,15 @@ class WinWin:
         if not self.is_decorated:
             style = win32gui.GetWindowLong(self.hwnd, win32con.GWL_STYLE)
             style += win32con.WS_CAPTION
-            win32gui.SetWindowLong(self.hwnd, win32con.GWL_STYLE, style)
+            try:
+                win32gui.SetWindowLong(self.hwnd, win32con.GWL_STYLE, style)
+                win32gui.SetWindowPos(self.hwnd, 0, 0, 0, 0, 0,
+                                      win32con.SWP_FRAMECHANGED +
+                                      win32con.SWP_NOMOVE +
+                                      win32con.SWP_NOSIZE +
+                                      win32con.SWP_NOZORDER)
+            except:
+                pass
 
     @property
     def is_visible(self):
