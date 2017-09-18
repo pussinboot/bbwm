@@ -74,6 +74,8 @@ class BBWM:
         win = self.win_methods.get_focused_window()
         if win is not None:
             self.workspace.tile(win)
+            if self.c.PRETTY_WINS:
+                win.undecorate()
             self.resize_wins()
             self.refocus()
             # gui
@@ -102,6 +104,8 @@ class BBWM:
         self.refocus()
         win = untiled_part.window
         if win is not None:
+            if self.c.PRETTY_WINS:
+                win.redecorate()
             # delet the window
             del self.win_methods.hwnd_to_win[win.hwnd]
             if win.part is not None:
@@ -176,7 +180,7 @@ class BBWM:
         keyboard.add_hotkey('ctrl+alt+up', self.swap_and_focus, args=['u'], trigger_on_release=True)
         keyboard.add_hotkey('ctrl+alt+down', self.swap_and_focus, args=['d'], trigger_on_release=True)
 
-        keyboard.add_hotkey('ctrl+alt+q', self.gui.root.destroy)
+        keyboard.add_hotkey('ctrl+alt+q', self.quit_helper)
         keyboard.add_hotkey('windows+c', self.draw_parts)
         keyboard.add_hotkey('ctrl+alt+r', print, args=[self.workspace])
 
@@ -200,12 +204,16 @@ class BBWM:
                 del self.win_methods.hwnd_to_win[msg[1]]
                 self.resize_wins()
                 self.refocus()
+
+    def quit_helper(self):
+        if self.c.PRETTY_WINS:
+            for _, w in self.win_methods.hwnd_to_win.items():
+                w.redecorate()
+        self.gui.root.destroy()
+
+
 if __name__ == '__main__':
     root = tk.Tk()
-    root.wm_attributes("-topmost", True)
-    root.wm_attributes("-transparentcolor", "#0DEAD0")
-    root.overrideredirect(True)
-
     bbwm = BBWM(root)
     # run it
     root.mainloop()

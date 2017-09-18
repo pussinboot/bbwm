@@ -15,8 +15,7 @@ how do i do equal splits and constraints..
 for 1st one i can handle it in tiling scheme
 
 # gotta do
-actual gui / window dec
-fix ugly explorers on size change 
+window dec is ugly for explorer wins :/
 
 changing partition schemes on the fly / promoting partitions to workspaces
 
