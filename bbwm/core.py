@@ -474,8 +474,10 @@ class Config:
 
         self.CLEAR_TIMEOUT = 333
         self.DEFAULT_OPACITY = 0.77
+        self.PRETTY_WINS = True
 
         # colors
+        self.TRANSPARENT_COLOR = '#0DEAD0'
         self.BORDER_HIGHLIGHT_COLOR = 'gray'
         self.BORDER_COLOR = 'black'
         self.CURSOR_COLOR = 'blue'
