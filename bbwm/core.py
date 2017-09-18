@@ -17,7 +17,7 @@ class Dims(namedtuple('Dims', ['x', 'y', 'w', 'h'])):
 
     def split_h_n(self, n):
         if n <= 2:
-            return [self.split_h()]
+            return self.split_h()
         new_w = self.w // n
         tor = []
         for i in range(n - 1):
@@ -34,7 +34,7 @@ class Dims(namedtuple('Dims', ['x', 'y', 'w', 'h'])):
 
     def split_v_n(self, n):
         if n <= 2:
-            return [self.split_v()]
+            return self.split_v()
         new_h = self.h // n
         tor = []
         for i in range(n - 1):
@@ -335,14 +335,14 @@ class Workspace:
             else:
                 self.cur_part = self.find_leaf_parts(next_cur)[0]
 
+        self.tile_scheme.untile(cp)
+
         # now recompute all dims because this doesnt work...
-        # aff_parts = self._traverse(self.cur_part.parent)
         aff_parts = self._traverse()
 
         for p in aff_parts:
             p.resize_from_parent()
 
-        self.tile_scheme.untile(part)
         return cp
 
     def resize_from_parent(self):
@@ -406,6 +406,7 @@ class Partition:
         if split.t is None:
             self.dims = self.parent.dims.resize(split.d, split.r, self.index)
         elif split.t == 'equal':
+            # n = len(self.parent.children)
             self.dims = self.parent.dims.resize_n(split.d, split.r, self.index)
 
     def _split(self, d, r, new_win):
@@ -531,7 +532,12 @@ class HorizontalTilingScheme(TileScheme):
         pass
 
     def untile(self, part, new_win=None):
-        pass
+        if part.parent is not None:
+            pps = part.parent.split
+            if pps is not None:
+                part.parent.split = Split(pps.d, max(1, pps.r - 1), pps.t)
+
+
 # configuration
 class Config:
     def __init__(self):
