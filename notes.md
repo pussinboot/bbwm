@@ -24,3 +24,12 @@ more partition schemes..
 multiple workspaces / auto setup of all that jazz
 
 auto a e s t h e t i c ratios
+
+# plan
+
+what's in winbinds should be moved to new bbwm.. so i can keep track of everything in one place
+
+roo
+then add tiling scheme for equal spacing
+then promote to diff tile type
+mayb some icon based scheme switcher? like a popup menu
