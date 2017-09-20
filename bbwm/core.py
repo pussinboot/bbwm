@@ -22,7 +22,7 @@ class Dims(namedtuple('Dims', ['x', 'y', 'w', 'h'])):
         tor = []
         for i in range(n - 1):
             tor.append(Dims(self.x + i * new_w, self.y, new_w, self.h))
-        final_w = self.w - (n - 1) * new_w # for rounding errors
+        final_w = self.w - (n - 1) * new_w  # for rounding errors
         tor.append(Dims(self.x + self.w - final_w, self.y, final_w, self.h))
         return tor
 
@@ -39,7 +39,7 @@ class Dims(namedtuple('Dims', ['x', 'y', 'w', 'h'])):
         tor = []
         for i in range(n - 1):
             tor.append(Dims(self.x, self.y + i * new_h, self.w, new_h))
-        final_h = self.w - (n - 1) * new_h # for rounding errors
+        final_h = self.w - (n - 1) * new_h  # for rounding errors
         tor.append(Dims(self.x, self.y + self.h - final_h, self.w, final_h))
         return tor
 
@@ -66,7 +66,7 @@ class Dims(namedtuple('Dims', ['x', 'y', 'w', 'h'])):
     def adjacency_check(self, o, i):
         # among our dimension make sure touching
         return (self[i] == o[i] + o[i + 2] or o[i] == self[i] + self[i + 2]) and \
-               ((o[1 - i] <= self[1 - i] and (o[1 - i] + o[3 - i]) > self[1 - i]) or \
+               ((o[1 - i] <= self[1 - i] and (o[1 - i] + o[3 - i]) > self[1 - i]) or
                (o[1 - i] > self[1 - i] and o[1 - i] < (self[1 - i] + self[3 - i])))
 
     def _get_offset_dims(self, lo, to, ro, bo):
@@ -97,6 +97,7 @@ class Split(namedtuple('Split', ['d', 'r', 't'])):
 
     def __new__(cls, d, r, t=None):
         return super(Split, cls).__new__(cls, d, r, t)
+
 
 # boxing
 class Workspace:
@@ -142,7 +143,7 @@ class Workspace:
         return tor
 
     def __str__(self):
-        top_line = '-'*15
+        top_line = '-' * 15
         next_line = '(cur {})'.format(self.cur_part)
         all_str = self._str_help(self.children[0])
         return '{}\n{}\n{}'.format(top_line, next_line, "\n".join(all_str))
@@ -322,7 +323,6 @@ class Workspace:
             pp.children[part.index] = new_workspace
         part.index = 0
 
-
     def untile(self, part=None):
         if part is None:
             cp = self.cur_part
@@ -376,7 +376,6 @@ class Workspace:
         elif split.t == 'equal':
             # n = len(self.parent.children)
             self.dims = self.parent.dims.resize_n(split.d, split.r, self.index)
-
 
 
 class Partition:
@@ -544,6 +543,7 @@ class DefaultTilingScheme(TileScheme):
     def untile(self, part, new_win=None):
         self.tile_count = max(0, self.tile_count - 1)
 
+
 class HorizontalTilingScheme(TileScheme):
     def __init__(self):
         super().__init__()
@@ -600,7 +600,6 @@ class Config:
         self.CURSOR_COLOR = 'blue'
 
         self.FAKE_WIN_COLOR = 'red'
-
 
 
 if __name__ == '__main__':

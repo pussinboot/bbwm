@@ -1,5 +1,6 @@
 import tkinter as tk
 
+
 class BBDraw:
     # i guess this is per monitor -.-
     def __init__(self, root, base_dims, c):
@@ -49,11 +50,11 @@ class BBDraw:
 
     def draw_split(self, part):
         dims, split = part.dims, part.split
-        if split.t is not None: # for now we will not draw equal spaced splits
+        if split.t is not None:  # for now we will not draw equal spaced splits
             return
         d_i = int(split.d == 'h')
         is_x, is_y = self.c.INNER_SPACING_X, self.c.INNER_SPACING_Y
-        
+
         x, y, w, h = dims.x, dims.y, dims.w, dims.h
         x, y = x + self.c.OFF_SCREEN + is_x / 2, y + self.c.OFF_SCREEN + is_y / 2
         w, h = w - is_x, h - is_y
@@ -73,7 +74,7 @@ class BBDraw:
                    activefill=self.c.BORDER_HIGHLIGHT_COLOR,
                    width=line_width,
                    tags=(split.d if split.t is None else '')
-                   )
+        )
 
         self.line_to_part[new_line] = part
 
@@ -172,4 +173,3 @@ class BBDraw:
             return
 
         self.canvas.move(the_line, delta_x, delta_y)
-

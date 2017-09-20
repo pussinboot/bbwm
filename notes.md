@@ -27,4 +27,6 @@ auto a e s t h e t i c ratios
 # plan
 
 promote to diff tile type
+hmm.. promoting partitions to workspaces doesn't work the way i want it to..
+too much duplication of code needed..
 mayb some icon based scheme switcher? like a popup menu

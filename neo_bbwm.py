@@ -5,6 +5,7 @@ import bbwm.win_api as bb_api
 import tkinter as tk
 import keyboard
 
+
 class BBWM:
     def __init__(self, root):
         # config
@@ -66,7 +67,7 @@ class BBWM:
                 cp.window.focus(True)
             else:
                 # move mouse to empty partition
-                self.win_methods.set_mouse_pos(cp.dims)    
+                self.win_methods.set_mouse_pos(cp.dims)
 
     # tiling
 
@@ -145,7 +146,7 @@ class BBWM:
     def draw_parts(self):
         self.gui.clear_screen()
         all_parts = self.workspace.find_leaf_parts()
-        cur_part = self.workspace.cur_part 
+        cur_part = self.workspace.cur_part
         for p in all_parts:
             self.gui.draw_border(p.dims.get_win_dims(self.c), cur_part == p)
         self.gui.fade_immediately()

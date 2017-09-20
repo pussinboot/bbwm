@@ -95,7 +95,7 @@ class WinWin:
             # see remarks from here: https://msdn.microsoft.com/en-us/library/windows/desktop/ms633539(v=vs.85).aspx
             self.shell.SendKeys('+')
             win32gui.SetForegroundWindow(self.hwnd)
-            win32gui.ShowWindow(self.hwnd, win32con.SW_RESTORE)            
+            win32gui.ShowWindow(self.hwnd, win32con.SW_RESTORE)
             if also_center:
                 return self.center_on_me()
             return True
@@ -250,7 +250,6 @@ class WinTaskIcon:
         win32gui.Shell_NotifyIcon(win32gui.NIM_ADD, notify_id)
         self.register_shellhook()
 
-
     def destroy(self):
         self.unregister_shellhook()
         win32gui.Shell_NotifyIcon(win32gui.NIM_DELETE, (self.hwnd, 0))
@@ -269,4 +268,3 @@ class WinTaskIcon:
             return win32gui.GetMessage(self.hwnd, 0, 0)
         except Exception as e:
             print(e)
-
