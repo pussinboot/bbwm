@@ -446,6 +446,9 @@ class Partition:
 
         for i, part in enumerate(self.parent.children):
             part.dims = new_dims[i]
+            if not part.is_empty:
+                for child in part:
+                    child.resize_from_parent()
 
         new_part = Partition(self.parent, new_dims[-1], n - 1, new_win)
         self.parent.children.append(new_part)
