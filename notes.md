@@ -26,6 +26,5 @@ auto a e s t h e t i c ratios
 
 # plan
 
-ok.. equal tiling werks, however gets messed up when u manually tile things within it.. :/
 promote to diff tile type
 mayb some icon based scheme switcher? like a popup menu
