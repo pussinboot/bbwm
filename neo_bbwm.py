@@ -135,6 +135,11 @@ class BBWM:
                 win_dim = p.dims.get_win_dims(self.c)
                 p.window.set_dims(win_dim)
 
+    def promote_to_ws(self):
+        cp = self.workspace.cur_part
+        if cp is not None:
+            self.workspace.promote(cp)
+
     # gui
 
     def draw_parts(self):
@@ -161,7 +166,7 @@ class BBWM:
         keyboard.add_hotkey('windows+s', self.tile_dir, args=['v'])
 
         keyboard.add_hotkey('windows+d', self.rotate)
-        keyboard.add_hotkey('windows+f', self.draw_splits)
+        keyboard.add_hotkey('windows+f', self.promote_to_ws)
 
         keyboard.add_hotkey('windows+q', self.tile_dir, args=['h', False])
         keyboard.add_hotkey('windows+w', self.tile_dir, args=['v', False])
