@@ -37,7 +37,7 @@ class Dims(namedtuple('Dims', ['x', 'y', 'w', 'h'])):
         tor = []
         for i in range(n - 1):
             tor.append(Dims(self.x, self.y + i * new_h, self.w, new_h))
-        final_h = self.w - (n - 1) * new_h  # for rounding errors
+        final_h = self.h - (n - 1) * new_h  # for rounding errors
         tor.append(Dims(self.x, self.y + self.h - final_h, self.w, final_h))
         return tor
 
