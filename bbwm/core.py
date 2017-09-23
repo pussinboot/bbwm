@@ -294,6 +294,14 @@ class Partition:
             s = '{} | tile-scheme : {}'.format(s, self.assoc_ts.__class__.__name__)
         return s
 
+    def _traverse(self, part=None):
+        if part is None:
+            part = self
+        tor = [part]
+        for p in part:
+            tor.extend(self._traverse(p))
+        return tor
+
     def become_child(self, idx=0):
         new_me = self.children[idx]
 
@@ -316,8 +324,8 @@ class Partition:
         if split.t is None:
             self.dims = self.parent.dims.resize(split.d, split.r, self.index)
         elif split.t == 'equal':
-            # n = len(self.parent.children)
-            self.dims = self.parent.dims.resize_n(split.d, split.r, self.index)
+            n = len(self.parent.children)
+            self.dims = self.parent.dims.resize_n(split.d, n, self.index)
 
     def _split(self, d, r, new_win):
         if d == 'h':
@@ -356,13 +364,14 @@ class Partition:
 
         for i, part in enumerate(self.parent.children):
             part.dims = new_dims[i]
-            if not part.is_empty:
-                for child in part:
-                    child.resize_from_parent()
 
         new_part = Partition(self.parent, new_dims[-1], n - 1, new_win)
         self.parent.children.append(new_part)
         self.parent.split = Split(d, n, 'equal')
+
+        aff_parts = self._traverse(self.parent)
+        for aff_p in aff_parts:
+            aff_p.resize_from_parent()
 
         # if new_win is not None:
         return [new_part]

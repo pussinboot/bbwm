@@ -2,6 +2,8 @@ import bbwm.drawing as bb_draw
 import bbwm.core as bb_core
 import bbwm.win_api as bb_api
 
+import bbwm.tiling as bb_tile
+
 import tkinter as tk
 import keyboard
 
@@ -136,6 +138,10 @@ class BBWM:
                 win_dim = p.dims.get_win_dims(self.c)
                 p.window.set_dims(win_dim)
 
+    def to_default_scheme(self):
+        d_ts = bb_tile.DefaultTilingScheme()
+        self.workspace.cur_part.assoc_ts = d_ts
+
     # gui
 
     def draw_parts(self):
@@ -162,7 +168,7 @@ class BBWM:
         keyboard.add_hotkey('windows+s', self.tile_dir, args=['v'])
 
         keyboard.add_hotkey('windows+d', self.rotate)
-        # keyboard.add_hotkey('windows+f', self.promote_to_ws)
+        keyboard.add_hotkey('windows+f', self.to_default_scheme)
 
         keyboard.add_hotkey('windows+q', self.tile_dir, args=['h', False])
         keyboard.add_hotkey('windows+w', self.tile_dir, args=['v', False])
