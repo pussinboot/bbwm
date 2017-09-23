@@ -246,7 +246,7 @@ class Workspace:
             else:
                 self.cur_part = self.find_leaf_parts(next_cur)[0]
 
-        self.tile_scheme.untile(cp)
+        cp.assoc_ts.untile(cp)
 
         # now recompute all dims because this doesnt work...
         aff_parts = self._traverse()
