@@ -1,5 +1,10 @@
 import abc
 
+try:
+    from geometry import Split
+except:
+    from .geometry import Split
+
 # tiling logic
 class TileScheme:
     __metaclass__ = abc.ABCMeta
@@ -86,7 +91,10 @@ class HorizontalTilingScheme(TileScheme):
                 part.window = new_win
                 new_win.part = part
                 return
-        return part._multi_split('h', new_win)
+        nps = part._multi_split('h', new_win)
+        for p in nps:
+            p.assoc_ts = self
+        return nps[0]
 
     def untile(self, part, new_win=None):
         if part.parent is not None:
