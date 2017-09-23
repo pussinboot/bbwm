@@ -127,8 +127,7 @@ class Workspace:
         # for pseudo-partitions
         self.parent = None
         self.split = None
-        self.dims = self.base_dims
-        self.index = 0
+        self.assoc_ts = self.tile_scheme
 
         # moving around
         self.go_left = lambda: self._move('h', -1)
@@ -157,10 +156,6 @@ class Workspace:
     def __iter__(self):
         for b in self.children:
             yield b
-
-    @property
-    def is_empty(self):
-        return False
 
     def _full_traversal(self, part):
         tor = [part]
@@ -275,19 +270,20 @@ class Workspace:
             self.cur_part = next_part
 
     def split_h(self, r=0.5, new_win=None):
-        np = self.cur_part.split_h(r, new_win)
-        if np is not None:
-            self.cur_part = np
-        self.tile_scheme.manual_tile(np, new_win)
+        nps = self.cur_part.split_h(r, new_win)
+        if nps is not None:
+            self.cur_part = nps[0]
+        self.tile_scheme.manual_tile(nps, new_win)
 
     def split_v(self, r=0.5, new_win=None):
-        np = self.cur_part.split_v(r, new_win)
-        if np is not None:
-            self.cur_part = np
-        self.tile_scheme.manual_tile(np, new_win)
+        nps = self.cur_part.split_v(r, new_win)
+        if nps is not None:
+            self.cur_part = nps[0]
+        self.tile_scheme.manual_tile(nps, new_win)
 
     def tile(self, new_win=None):
-        np = self.tile_scheme.tile(self.cur_part, new_win)
+        # np = self.tile_scheme.tile(self.cur_part, new_win)
+        np = self.cur_part.assoc_ts.tile(self.cur_part, new_win)
         if np is not None:
             self.cur_part = np
 
@@ -316,18 +312,6 @@ class Workspace:
 
         for p in aff_parts:
             p.resize_from_parent()
-
-    # TODO: think about this more carefully
-    def promote(self, part, new_tiling_scheme=None):
-        # promote a partition to a workspace
-        if new_tiling_scheme is None:
-            new_tiling_scheme = DefaultTilingScheme()
-
-        pp = part.parent
-        new_workspace = Workspace(part.dims, tile_scheme=new_tiling_scheme, first_child=part)
-        if pp is not None:
-            pp.children[part.index] = new_workspace
-        part.index = 0
 
     def untile(self, part=None):
         if part is None:
@@ -370,19 +354,6 @@ class Workspace:
 
         return cp
 
-    def resize_from_parent(self):
-        if self.parent is None:
-            return
-        if self.parent.split is None:
-            return
-        # need to check split type..
-        split = self.parent.split
-        if split.t is None:
-            self.dims = self.parent.dims.resize(split.d, split.r, self.index)
-        elif split.t == 'equal':
-            # n = len(self.parent.children)
-            self.dims = self.parent.dims.resize_n(split.d, split.r, self.index)
-
 
 class Partition:
     def __init__(self, parent, dims, index=0, win=None, ts=None):
@@ -417,6 +388,8 @@ class Partition:
             s = '{} | {}'.format(s, self.split.__str__())
         if self.window is not None:
             s = '{} | win : {}'.format(s, self.window.hwnd)
+        if self.assoc_ts is not None:
+            s = '{} | tile-scheme : {}'.format(s, self.assoc_ts.__class__.__name__)
         return s
 
     def become_child(self, idx=0):
@@ -463,8 +436,8 @@ class Partition:
         self.split = Split(d, r)
         self.children.extend([p1, p2])
         if new_win is None:
-            return p1
-        return p2
+            return p1, p2
+        return p2, p1
 
     def _multi_split(self, d, new_win):
         if self.parent is None:
