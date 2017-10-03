@@ -5,7 +5,6 @@ keyboard at least 0.11.0
 want to do - activate shortcut - lists indices over all your currently tiled windows
 hit index and switcheroo
 
-
 ## mayb?
 tabs w/in partitions
 
@@ -15,7 +14,6 @@ how do i add constraints..
 window dec is ugly for explorer wins :/
 
 more partition schemes..
-multiple workspaces / auto setup of all that jazz
 
 auto a e s t h e t i c ratios
 
@@ -23,4 +21,4 @@ auto a e s t h e t i c ratios
 
 popup menu to change tile scheme >:o
 
-win10 workspaces?
+popup menus for tile scheme / workspace / alt-tab replacement
