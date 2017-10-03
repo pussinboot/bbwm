@@ -119,7 +119,8 @@ class WinMethods:
         self.hwnd_to_win = {}
 
         if msg_processor is None:
-            msg_processor = lambda m: None
+            def msg_processor(m):
+                pass
 
         self.msg_processor = msg_processor
 
