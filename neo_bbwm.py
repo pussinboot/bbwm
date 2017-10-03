@@ -18,24 +18,12 @@ class BBWM:
         self.win_methods.msg_processor = self.process_msgs
         # TODO change for multimonitor setups..
         desktop = self.win_methods.monitors[0][1].get_ws_dims(self.c)
-        self.workspace = bb_core.Workspace(desktop)
 
-        self.move_dir_funs = {
-            'l': self.workspace.go_left,
-            'r': self.workspace.go_right,
-            'u': self.workspace.go_up,
-            'd': self.workspace.go_down,
-        }
-
-        self.swap_dir_funs = {
-            'l': self.workspace.swap_left,
-            'r': self.workspace.swap_right,
-            'u': self.workspace.swap_up,
-            'd': self.workspace.swap_down,
-        }
+        self._hiding_wins = False
+        self.workspaces = [bb_core.Workspace(desktop) for _ in range(self.c.NO_WORKSPACES)]
+        self.workspace_ind = 0
 
         # gui
-
         self.gui = bb_draw.BBDraw(root, desktop, self.c)
         self.gui.resplit_fun = self.resplit
 
@@ -45,20 +33,66 @@ class BBWM:
         # rdy to go
         self.win_methods.start_monitoring()
 
+    # workspaces
+
+    @property
+    def workspace(self):
+        return self.workspaces[self.workspace_ind]
+
+    def change_workspace(self, new_ind):
+        if new_ind >= self.c.NO_WORKSPACES:
+            return
+        # hide cur workspace
+        if new_ind != self.workspace_ind:
+            self._hiding_wins = True
+            all_parts = self.workspace.find_leaf_parts()
+            for p in all_parts:
+                if p.window is not None:
+                    p.window.hide()
+
+        self._hiding_wins = False
+
+        # show new one
+        self.workspace_ind = new_ind
+        all_parts = self.workspace.find_leaf_parts()
+        for p in all_parts:
+            if p.window is not None:
+                p.window.unhide()
+                p.window.focus()  # do this to bring them all up front again
+        # restore focus
+        if self.workspace.cur_part.window is not None:
+            self.workspace.cur_part.window.focus(True)
+
     # movement
 
     def move_and_focus(self, d):
-        if d not in self.move_dir_funs:
+        move_dir_funs = {
+            'l': self.workspace.go_left,
+            'r': self.workspace.go_right,
+            'u': self.workspace.go_up,
+            'd': self.workspace.go_down,
+        }
+
+        if d not in move_dir_funs:
             return
-        self.move_dir_funs[d]()
+
+        move_dir_funs[d]()
         self.refocus()
         # gui
         self.draw_parts()
 
     def swap_and_focus(self, d):
-        if d not in self.swap_dir_funs:
+        swap_dir_funs = {
+            'l': self.workspace.swap_left,
+            'r': self.workspace.swap_right,
+            'u': self.workspace.swap_up,
+            'd': self.workspace.swap_down,
+        }
+
+        if d not in swap_dir_funs:
             return
-        self.swap_dir_funs[d]()
+
+        swap_dir_funs[d]()
         self.resize_wins()
         self.refocus()
 
@@ -168,7 +202,7 @@ class BBWM:
         keyboard.add_hotkey('windows+s', self.tile_dir, args=['v'])
 
         keyboard.add_hotkey('windows+d', self.rotate)
-        keyboard.add_hotkey('windows+f', self.to_default_scheme)
+        keyboard.add_hotkey('windows+f', self.draw_splits)
 
         keyboard.add_hotkey('windows+q', self.tile_dir, args=['h', False])
         keyboard.add_hotkey('windows+w', self.tile_dir, args=['v', False])
@@ -187,6 +221,11 @@ class BBWM:
         keyboard.add_hotkey('ctrl+alt+up', self.swap_and_focus, args=['u'], trigger_on_release=True)
         keyboard.add_hotkey('ctrl+alt+down', self.swap_and_focus, args=['d'], trigger_on_release=True)
 
+        keyboard.add_hotkey('ctrl+alt+1', self.change_workspace, args=[0], trigger_on_release=True)
+        keyboard.add_hotkey('ctrl+alt+2', self.change_workspace, args=[1], trigger_on_release=True)
+        keyboard.add_hotkey('ctrl+alt+3', self.change_workspace, args=[2], trigger_on_release=True)
+
+
         keyboard.add_hotkey('ctrl+alt+q', self.quit_helper)
         keyboard.add_hotkey('windows+c', self.draw_parts)
         keyboard.add_hotkey('ctrl+alt+r', print, args=[self.workspace])
@@ -199,6 +238,9 @@ class BBWM:
             if w is not None and w.part is not None:
                 self.workspace.cur_part = w.part
         elif msg[0] == 'close_win':
+            # apparently hiding windows sends the same msg as closing them..
+            if self._hiding_wins:
+                return
             w = self.win_methods._get_or_add_win(msg[1], False)
             if w is not None and w.part is not None:
                 self.workspace.untile(w.part)

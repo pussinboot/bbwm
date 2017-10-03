@@ -5,6 +5,7 @@ except:
     from .tiling import DefaultTilingScheme, HorizontalTilingScheme
     from .geometry import Dims, Split
 
+
 # boxing
 class Workspace:
     # a workspace is like a super-partition
@@ -12,8 +13,8 @@ class Workspace:
         self.base_dims = base_dims
 
         if tile_scheme is None:
-            # tile_scheme = DefaultTilingScheme()
-            tile_scheme = HorizontalTilingScheme()
+            tile_scheme = DefaultTilingScheme()
+            # tile_scheme = HorizontalTilingScheme()
         self.tile_scheme = tile_scheme
 
         if first_child is None:
@@ -400,6 +401,9 @@ class Config:
 
         # sizes
         self.CURSOR_SIZE = 20
+
+        # workspaces
+        self.NO_WORKSPACES = 3
 
         # gui stuff
 
