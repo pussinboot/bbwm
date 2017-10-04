@@ -21,6 +21,8 @@ class BBDraw:
         self.canvas = tk.Canvas(root, width=w, height=h, bg=self.c.TRANSPARENT_COLOR)
         self.canvas.pack()
 
+        # for resizing partitions
+
         self._draw_job = None
         self._drag_data = {"x": 0, "y": 0, "item": None, 'dir': None}
 
@@ -31,6 +33,10 @@ class BBDraw:
             self.canvas.tag_bind(d, "<ButtonPress-1>", self.drag_begin)
             self.canvas.tag_bind(d, "<ButtonRelease-1>", self.drag_end)
             self.canvas.tag_bind(d, "<B1-Motion>", self.drag)
+
+        # for menu stuff
+
+        self._click_to_fun = {}
 
     def _dims_to_canvas_coords(self, dims):
         x, y, w, h = dims.x, dims.y, dims.w, dims.h
@@ -78,6 +84,40 @@ class BBDraw:
 
         self.line_to_part[new_line] = part
 
+    def draw_menu(self):
+        x, y = self.root.winfo_pointerx(), self.root.winfo_pointery()
+        x, y = x + self.c.OFF_SCREEN, y + self.c.OFF_SCREEN
+
+        dxy = [[-1, -1], [1, -1],
+               [-1,  1], [1,  1]]
+        tags_to_funs = [
+            ('ul', lambda e: print('up left')),
+            ('ur', lambda e: print('up right')),
+            ('dl', lambda e: print('down left')),
+            ('dr', lambda e: print('down right')),
+        ]
+
+        for i in range(4):
+            dxdy = dxy[i]
+            x2, y2 = x + 75 * dxdy[0], y + 75 * dxdy[1]
+
+            self.canvas.create_rectangle(min(x, x2), min(y, y2),
+                                         max(x, x2), max(y, y2),
+                                         outline=self.c.BORDER_HIGHLIGHT_COLOR,
+                                         fill=self.c.BORDER_COLOR,
+                                         tags=(tags_to_funs[i][0]))
+
+        self.reset_menu(tags_to_funs)
+
+    def reset_menu(self, tag_to_fun=[]):
+        for tag in self._click_to_fun:
+            self.canvas.tag_unbind(tag, "<ButtonPress-1>")
+
+        self._click_to_fun = []
+        for (tag, fun) in tag_to_fun:
+            self._click_to_fun.append(tag)
+            self.canvas.tag_bind(tag, "<ButtonPress-1>", fun)
+
     def clear_screen(self):
         self.canvas.delete('all')
         del self.line_to_part
@@ -100,14 +140,17 @@ class BBDraw:
         delay = int(delay)
         self._fade(_to, step, delay)
 
-    def fade_in(self):
+    def fade_in(self, also_fade_out=False):
         if self._draw_job is not None:
             self.root.after_cancel(self._draw_job)
-        _from, _to = 0, self.c.DEFAULT_OPACITY
+        _to = self.c.DEFAULT_OPACITY
         delay = self.c.CLEAR_TIMEOUT / 5
         step = _to / 5
         delay = int(delay)
-        self._fade(_from, _to, step, delay, lambda: self.root.after(self.c.CLEAR_TIMEOUT, self.fade_out))
+        if also_fade_out:
+            self._fade(_to, step, delay, lambda: self.root.after(self.c.CLEAR_TIMEOUT, self.fade_out))
+        else:
+            self._fade(_to, step, delay)
 
     def fade_immediately(self):
         if self._draw_job is not None:
