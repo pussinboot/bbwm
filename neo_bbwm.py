@@ -172,9 +172,40 @@ class BBWM:
                 win_dim = p.dims.get_win_dims(self.c)
                 p.window.set_dims(win_dim)
 
+    def change_scheme(self, new_ts):
+        cp = self.workspace.cur_part
+        if cp.parent is not None:
+            cp = cp.parent
+        cp.assoc_ts = new_ts
+        aff_parts = self.workspace._traverse(cp)
+
+        # grr, this doesn't work..
+        # i want it to resplit everything
+
+        # orphans = [p for p in cp.children]
+        # cp.children = []
+
+        # for p in orphans:
+        #     p_win = p.window
+        #     if p_win is not None:
+        #         p_win.part = None
+        #     new_ts.tile(p, p_win)
+
+        for p in aff_parts:
+            p.assoc_ts = new_ts
+            p.resize_from_parent()
+
+        self.resize_wins()
+        # gui
+        self.draw_parts()  # needs delay or proper cancel from menu fadeout
+
     def to_default_scheme(self):
         d_ts = bb_tile.DefaultTilingScheme()
-        self.workspace.cur_part.assoc_ts = d_ts
+        self.change_scheme(d_ts)
+
+    def to_horiz_scheme(self):
+        h_ts = bb_tile.HorizontalTilingScheme()
+        self.change_scheme(h_ts)
 
     # gui
 
@@ -184,7 +215,7 @@ class BBWM:
         cur_part = self.workspace.cur_part
         for p in all_parts:
             self.gui.draw_border(p.dims.get_win_dims(self.c), cur_part == p)
-        self.gui.fade_in(True)
+        self.gui.fade_immediately()
 
     def draw_splits(self):
         self.gui.clear_screen()
@@ -195,7 +226,15 @@ class BBWM:
 
     def draw_menu(self):
         self.gui.clear_screen()
-        self.gui.draw_menu()
+
+        tags_to_funs = [
+            ('dflt', self.to_default_scheme),
+            ('mono', lambda: print('not implemented yet')),
+            ('horz', self.to_horiz_scheme),
+            ('vert', lambda: print('not implemented yet')),
+        ]
+
+        self.gui.draw_menu(tags_to_funs)
         self.gui.fade_in()
 
     # maint

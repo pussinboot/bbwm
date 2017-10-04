@@ -86,19 +86,13 @@ class BBDraw:
 
         self.line_to_part[new_line] = part
 
-    def draw_menu(self):
+    def draw_menu(self, tags_to_funs):
         x, y = self.root.winfo_pointerx(), self.root.winfo_pointery()
         x, y = x + self.c.OFF_SCREEN, y + self.c.OFF_SCREEN
         w = self.part_width // 2
 
         dxy = [[-1, -1], [1, -1],
                [-1,  1], [1,  1]]
-        tags_to_funs = [
-            ('ul', lambda: print('up left')),
-            ('ur', lambda: print('up right')),
-            ('dl', lambda: print('down left')),
-            ('dr', lambda: print('down right')),
-        ]
 
         for i in range(4):
             dxdy = dxy[i]

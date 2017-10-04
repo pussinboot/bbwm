@@ -44,7 +44,10 @@ class Workspace:
         self.swap_down = lambda: self._swap('v', 1)
 
     def _str_help(self, part, prefix=""):
-        tor = ["{}{}".format(prefix, part.__str__())]
+        if part == self.cur_part:
+            tor = ["{}{} ***".format(prefix, part.__str__())]
+        else:
+            tor = ["{}{}".format(prefix, part.__str__())]
         pref = "\t{}".format(prefix)
         for p in part:
             tor.extend(self._str_help(p, pref))
@@ -52,9 +55,8 @@ class Workspace:
 
     def __str__(self):
         top_line = '-' * 15
-        next_line = '(cur {})'.format(self.cur_part)
         all_str = self._str_help(self.children[0])
-        return '{}\n{}\n{}'.format(top_line, next_line, "\n".join(all_str))
+        return '{}\n{}'.format(top_line, "\n".join(all_str))
 
     def __iter__(self):
         for b in self.children:
