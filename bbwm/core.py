@@ -410,6 +410,7 @@ class Config:
         self.CLEAR_TIMEOUT = 333
         self.DEFAULT_OPACITY = 0.77
         self.PRETTY_WINS = False
+        self.FONT = ('IBM 3161', 14)
 
         # colors
         self.TRANSPARENT_COLOR = '#0DEAD0'

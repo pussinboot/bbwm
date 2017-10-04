@@ -18,6 +18,8 @@ class BBDraw:
         x, y = -c.OFF_SCREEN, -c.OFF_SCREEN
         self.root.geometry('%dx%d+%d+%d' % (w, h, x, y))
 
+        self.part_width = max(min(self.c.INNER_SPACING_X, self.c.INNER_SPACING_Y) - 2, 2)
+
         self.canvas = tk.Canvas(root, width=w, height=h, bg=self.c.TRANSPARENT_COLOR)
         self.canvas.pack()
 
@@ -47,9 +49,9 @@ class BBDraw:
 
     def draw_border(self, dims, current):
         outline = self.c.BORDER_HIGHLIGHT_COLOR if current else self.c.BORDER_COLOR
-        w = max(min(self.c.INNER_SPACING_X, self.c.INNER_SPACING_Y) - 2, 2)
 
-        self.canvas.create_rectangle(*self._dims_to_canvas_coords(dims), outline=outline, width=w)
+        self.canvas.create_rectangle(*self._dims_to_canvas_coords(dims),
+                                     outline=outline, width=self.part_width)
 
     def rdy_to_split(self):
         self.root.attributes('-alpha', self.c.DEFAULT_OPACITY)
@@ -87,27 +89,40 @@ class BBDraw:
     def draw_menu(self):
         x, y = self.root.winfo_pointerx(), self.root.winfo_pointery()
         x, y = x + self.c.OFF_SCREEN, y + self.c.OFF_SCREEN
+        w = self.part_width // 2
 
         dxy = [[-1, -1], [1, -1],
                [-1,  1], [1,  1]]
         tags_to_funs = [
-            ('ul', lambda e: print('up left')),
-            ('ur', lambda e: print('up right')),
-            ('dl', lambda e: print('down left')),
-            ('dr', lambda e: print('down right')),
+            ('ul', lambda: print('up left')),
+            ('ur', lambda: print('up right')),
+            ('dl', lambda: print('down left')),
+            ('dr', lambda: print('down right')),
         ]
 
         for i in range(4):
             dxdy = dxy[i]
             x2, y2 = x + 75 * dxdy[0], y + 75 * dxdy[1]
-
+            tag = tags_to_funs[i][0]
             self.canvas.create_rectangle(min(x, x2), min(y, y2),
                                          max(x, x2), max(y, y2),
                                          outline=self.c.BORDER_HIGHLIGHT_COLOR,
                                          fill=self.c.BORDER_COLOR,
-                                         tags=(tags_to_funs[i][0]))
+                                         width=w,
+                                         tags=(tag))
+            self.canvas.create_text((x + x2) // 2, (y + y2) // 2,
+                                    fill=self.c.BORDER_HIGHLIGHT_COLOR,
+                                    font=self.c.FONT,
+                                    text=tag, tags=(tag))
 
         self.reset_menu(tags_to_funs)
+        self.root.bind('<FocusOut>', self.lost_focus)
+
+    def _menu_help(self, fun):
+        def new_fun(e):
+            fun()
+            self.fade_out()
+        return new_fun
 
     def reset_menu(self, tag_to_fun=[]):
         for tag in self._click_to_fun:
@@ -116,7 +131,12 @@ class BBDraw:
         self._click_to_fun = []
         for (tag, fun) in tag_to_fun:
             self._click_to_fun.append(tag)
-            self.canvas.tag_bind(tag, "<ButtonPress-1>", fun)
+            self.canvas.tag_bind(tag, "<ButtonPress-1>", self._menu_help(fun))
+
+    def lost_focus(self, e):
+        self.reset_menu()
+        self.fade_out()
+        self.root.unbind('<FocusOut>')
 
     def clear_screen(self):
         self.canvas.delete('all')
