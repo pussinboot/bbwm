@@ -5,6 +5,7 @@ try:
 except:
     from .geometry import Split
 
+
 # tiling logic
 class TileScheme:
     __metaclass__ = abc.ABCMeta
@@ -44,6 +45,7 @@ class ManualTilingScheme(TileScheme):
 
     def untile(self, part, new_win=None):
         return
+
 
 class DefaultTilingScheme(TileScheme):
     def __init__(self):

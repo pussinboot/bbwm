@@ -184,7 +184,7 @@ class BBWM:
         cur_part = self.workspace.cur_part
         for p in all_parts:
             self.gui.draw_border(p.dims.get_win_dims(self.c), cur_part == p)
-        self.gui.fade_immediately()
+        self.gui.fade_in(True)
 
     def draw_splits(self):
         self.gui.clear_screen()
@@ -192,6 +192,11 @@ class BBWM:
         all_parts_with_splits = self.workspace.find_all_splits()
         for p in all_parts_with_splits:
             self.gui.draw_split(p)
+
+    def draw_menu(self):
+        self.gui.clear_screen()
+        self.gui.draw_menu()
+        self.gui.fade_in()
 
     # maint
 
@@ -201,8 +206,10 @@ class BBWM:
         keyboard.add_hotkey('windows+a', self.tile_dir, args=['h'])
         keyboard.add_hotkey('windows+s', self.tile_dir, args=['v'])
 
-        keyboard.add_hotkey('windows+d', self.rotate)
         keyboard.add_hotkey('windows+f', self.draw_splits)
+        keyboard.add_hotkey('windows+c', self.draw_menu)
+
+        keyboard.add_hotkey('windows+d', self.rotate)
 
         keyboard.add_hotkey('windows+q', self.tile_dir, args=['h', False])
         keyboard.add_hotkey('windows+w', self.tile_dir, args=['v', False])
@@ -225,9 +232,7 @@ class BBWM:
         keyboard.add_hotkey('ctrl+alt+2', self.change_workspace, args=[1], trigger_on_release=True)
         keyboard.add_hotkey('ctrl+alt+3', self.change_workspace, args=[2], trigger_on_release=True)
 
-
         keyboard.add_hotkey('ctrl+alt+q', self.quit_helper)
-        keyboard.add_hotkey('windows+c', self.draw_parts)
         keyboard.add_hotkey('ctrl+alt+r', print, args=[self.workspace])
 
     def process_msgs(self, msg):
