@@ -24,7 +24,7 @@ class TileScheme:
                 p.assoc_ts = nmt
 
     @abc.abstractmethod
-    def untile(self, part):
+    def untile(self, part, new_win=None):
         return
 
 
