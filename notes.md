@@ -19,6 +19,11 @@ auto a e s t h e t i c ratios
 
 # plan
 
-popup menu to change tile scheme >:o
-
 popup menus for tile scheme / workspace / alt-tab replacement
+
+# fix things
+
+changing tiling scheme is hard to follow..
+    need to highlight parent partitions when entering menu
+doesn't retile them until i add another one
+rotating horizontal tiling scheme works but then resets

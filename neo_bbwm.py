@@ -16,15 +16,20 @@ class BBWM:
         # "backend"
         self.win_methods = bb_api.WinMethods()
         self.win_methods.msg_processor = self.process_msgs
-        # TODO change for multimonitor setups..
-        desktop = self.win_methods.monitors[0][1].get_ws_dims(self.c)
 
+        self.num_displays = len(self.win_methods.monitors)
+
+        self.display_ind = 0
+        self.workspace_inds = [0] * self.num_displays
         self._hiding_wins = False
-        self.workspaces = [bb_core.Workspace(desktop) for _ in range(self.c.NO_WORKSPACES)]
-        self.workspace_ind = 0
+
+        self.workspaces = []
+        for _, display_dims in self.win_methods.monitors:
+            desktop = display_dims.get_ws_dims(self.c)
+            self.workspaces.append([bb_core.Workspace(desktop) for _ in range(self.c.NO_WORKSPACES)])
 
         # gui
-        self.gui = bb_draw.BBDraw(root, desktop, self.c)
+        self.gui = bb_draw.BBDraw(root, self.win_methods.monitor_bbox, self.c)
         self.gui.resplit_fun = self.resplit
 
         # setup keybinds
@@ -37,13 +42,14 @@ class BBWM:
 
     @property
     def workspace(self):
-        return self.workspaces[self.workspace_ind]
+        d_i = self.display_ind
+        return self.workspaces[d_i][self.workspace_inds[d_i]]
 
     def change_workspace(self, new_ind):
         if new_ind >= self.c.NO_WORKSPACES:
             return
         # hide cur workspace
-        if new_ind != self.workspace_ind:
+        if new_ind != self.workspace_inds[self.display_ind]:
             self._hiding_wins = True
             all_parts = self.workspace.find_leaf_parts()
             for p in all_parts:
@@ -53,7 +59,7 @@ class BBWM:
         self._hiding_wins = False
 
         # show new one
-        self.workspace_ind = new_ind
+        self.workspace_inds[self.display_ind] = new_ind
         all_parts = self.workspace.find_leaf_parts()
         for p in all_parts:
             if p.window is not None:
@@ -62,6 +68,20 @@ class BBWM:
         # restore focus
         if self.workspace.cur_part.window is not None:
             self.workspace.cur_part.window.focus(True)
+
+    def change_display(self, d):
+
+        self.display_ind = (self.display_ind + d) % self.num_displays
+
+        cp = self.workspace.cur_part
+        if cp.window is not None:
+            cp.window.focus(True)
+        else:
+            self.win_methods.set_mouse_pos(cp.dims)
+
+    def debug_display(self):
+        print(self.workspace)
+        print(self.display_ind, self.workspace_inds)
 
     # movement
 
@@ -109,7 +129,7 @@ class BBWM:
 
     def tile(self):
         win = self.win_methods.get_focused_window()
-        if win is not None:
+        if win is not None and win.part is None:
             self.workspace.tile(win)
             if self.c.PRETTY_WINS:
                 win.undecorate()
@@ -118,16 +138,11 @@ class BBWM:
             # gui
             self.draw_parts()
 
-    def tile_dir(self, d, find_win=True):
-        win = None
-        if find_win:
-            win = self.win_methods.get_focused_window()
-            if win is None:
-                return
+    def tile_dir(self, d):
         if d == 'v':
-            self.workspace.split_v(new_win=win)
+            self.workspace.split_v()
         else:
-            self.workspace.split_h(new_win=win)
+            self.workspace.split_h()
         self.resize_wins()
         self.refocus()
         # gui
@@ -144,7 +159,8 @@ class BBWM:
             if self.c.PRETTY_WINS:
                 win.redecorate()
             # delet the window
-            del self.win_methods.hwnd_to_win[win.hwnd]
+            if win.hwnd in self.win_methods.hwnd_to_win:
+                del self.win_methods.hwnd_to_win[win.hwnd]
             if win.part is not None:
                 win.part.window = None
         # gui
@@ -271,15 +287,18 @@ class BBWM:
         keyboard.add_hotkey('ctrl+alt+2', self.change_workspace, args=[1], trigger_on_release=True)
         keyboard.add_hotkey('ctrl+alt+3', self.change_workspace, args=[2], trigger_on_release=True)
 
+        keyboard.add_hotkey('windows+page up', self.change_display, args=[+1], trigger_on_release=True)
+        keyboard.add_hotkey('windows+page down', self.change_display, args=[-1], trigger_on_release=True)
+
         keyboard.add_hotkey('ctrl+alt+q', self.quit_helper)
-        keyboard.add_hotkey('ctrl+alt+r', print, args=[self.workspace])
+        keyboard.add_hotkey('ctrl+alt+r', self.debug_display)
 
     def process_msgs(self, msg):
-        # print(msg)
         if msg[0] == 'focus_win':
             # will need to choose workspace associated with the monitor
             w = self.win_methods._get_or_add_win(msg[1], False)
             if w is not None and w.part is not None:
+                self.display_ind = msg[2]
                 self.workspace.cur_part = w.part
         elif msg[0] == 'close_win':
             # apparently hiding windows sends the same msg as closing them..
@@ -302,6 +321,8 @@ class BBWM:
         if self.c.PRETTY_WINS:
             for _, w in self.win_methods.hwnd_to_win.items():
                 w.redecorate()
+        if self.win_methods.spy is not None:
+            self.win_methods.spy.destroy()
         self.gui.root.destroy()
 
 
