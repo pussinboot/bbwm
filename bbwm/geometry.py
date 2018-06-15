@@ -65,7 +65,7 @@ class Dims(namedtuple('Dims', ['x', 'y', 'w', 'h'])):
         # among our dimension make sure touching
         return (self[i] == o[i] + o[i + 2] or o[i] == self[i] + self[i + 2]) and \
                ((o[1 - i] <= self[1 - i] and (o[1 - i] + o[3 - i]) > self[1 - i]) or
-               (o[1 - i] > self[1 - i] and o[1 - i] < (self[1 - i] + self[3 - i])))
+                (o[1 - i] > self[1 - i] and o[1 - i] < (self[1 - i] + self[3 - i])))
 
     def _get_offset_dims(self, lo, to, ro, bo):
         x, w = self.x + lo, self.w - lo - ro

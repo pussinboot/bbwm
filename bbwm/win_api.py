@@ -123,6 +123,7 @@ class WinMethods:
                 pass
 
         self.msg_processor = msg_processor
+        self.spy = None
 
         self.msg_type_to_action = {
             win32con.HSHELL_WINDOWCREATED: 'new_win',
@@ -132,12 +133,24 @@ class WinMethods:
 
         self.shell = win32com.client.Dispatch("WScript.Shell")
 
-    def find_monitors(self):
-        self.monitors = [(handle, Dims(*rect)) for handle, _, rect in win32api.EnumDisplayMonitors()]
+    def _dim_from_monitor(self, rect):
+        left_x, top_y, right_x, bot_y = rect
+        return Dims(left_x, top_y, right_x - left_x, bot_y - top_y)
 
-    def monitor_from_point(self, point):
+    def find_monitors(self):
+        enumed_displays = win32api.EnumDisplayMonitors()
+        self.monitors = [(handle, self._dim_from_monitor(rect)) for
+                         handle, _, rect in enumed_displays]
+
+        xs, ys = [], []
+        for _, _, r in enumed_displays:
+            xs.extend([r[0], r[2]])
+            ys.extend([r[1], r[3]])
+        self.monitor_bbox = [min(xs), min(ys), max(xs), max(ys)]
+
+    def monitor_from_hwnd(self, hwnd):
         try:
-            handle = win32api.MonitorFromPoint(point, win32con.MONITOR_DEFAULTTONEAREST)
+            handle = win32api.MonitorFromWindow(hwnd, win32con.MONITOR_DEFAULTTONEAREST)
         except:
             return -1
         for i, m in enumerate(self.monitors):
@@ -184,19 +197,20 @@ class WinMethods:
         win32api.SetCursorPos((dims.midpoint()))
 
     def _intercept_msgs(self):
-        spy = WinTaskIcon()
-        msg = spy.get_msg()
+        self.spy = WinTaskIcon()
+        msg = self.spy.get_msg()
         while msg:
             # print(msg)
             # process msg
             lparam = msg[1][2]
             if lparam in self.msg_type_to_action:
-                hwnd, point = msg[1][3], msg[1][5]
-                monitor_i = self.monitor_from_point(point)
+                hwnd = msg[1][3]
+                # point = msg[1][5]
+                monitor_i = self.monitor_from_hwnd(hwnd)
 
                 self._handle_msg((self.msg_type_to_action[lparam], hwnd, monitor_i))
 
-            msg = spy.get_msg()
+            msg = self.spy.get_msg()
 
     def _handle_msg(self, msg):
         msg_type, hwnd = msg[0], msg[1]
@@ -205,10 +219,7 @@ class WinMethods:
                 self.hwnd_to_win[hwnd] = WinWin(hwnd, self.shell)
             else:
                 return
-        elif msg_type == 'close_win':
-            if hwnd not in self.hwnd_to_win:
-                return
-        elif msg_type == 'focus_win':
+        elif msg_type in ['close_win', 'focus_win']:
             if hwnd not in self.hwnd_to_win:
                 return
         self.msg_processor(msg)
@@ -253,7 +264,11 @@ class WinTaskIcon:
 
     def destroy(self):
         self.unregister_shellhook()
-        win32gui.Shell_NotifyIcon(win32gui.NIM_DELETE, (self.hwnd, 0))
+        try:
+            # doesn't play nice if blackbox is running.. lol
+            win32gui.Shell_NotifyIcon(win32gui.NIM_DELETE, (self.hwnd, 0))
+        except:
+            pass
 
     def register_shellhook(self):
         if windll.user32.RegisterShellHookWindow(self.hwnd):

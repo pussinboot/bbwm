@@ -2,8 +2,7 @@ import tkinter as tk
 
 
 class BBDraw:
-    # i guess this is per monitor -.-
-    def __init__(self, root, base_dims, c):
+    def __init__(self, root, monitor_bbox, c):
         self.c = c  # config
 
         self.root = root
@@ -13,8 +12,8 @@ class BBDraw:
         root.wm_attributes("-transparentcolor", self.c.TRANSPARENT_COLOR)
         root.overrideredirect(True)
 
-        self.width, self.height = base_dims.w, base_dims.h
-        w, h = self.width + 2 * c.OFF_SCREEN, self.height + 2 * c.OFF_SCREEN
+        width, height = monitor_bbox[2] - monitor_bbox[0], monitor_bbox[3] - monitor_bbox[1]
+        w, h = width + 2 * c.OFF_SCREEN, height + 2 * c.OFF_SCREEN
         x, y = -c.OFF_SCREEN, -c.OFF_SCREEN
         self.root.geometry('%dx%d+%d+%d' % (w, h, x, y))
 
@@ -54,6 +53,8 @@ class BBDraw:
                                      outline=outline, width=self.part_width)
 
     def rdy_to_split(self):
+        if self._draw_job is not None:
+            self.root.after_cancel(self._draw_job)
         self.root.attributes('-alpha', self.c.DEFAULT_OPACITY)
 
     def draw_split(self, part):
@@ -78,11 +79,11 @@ class BBDraw:
             y = by
 
         new_line = self.canvas.create_line(x, y, rx, by,
-                   fill=self.c.BORDER_COLOR,
-                   activefill=self.c.BORDER_HIGHLIGHT_COLOR,
-                   width=line_width,
-                   tags=(split.d if split.t is None else '')
-        )
+                                           fill=self.c.BORDER_COLOR,
+                                           activefill=self.c.BORDER_HIGHLIGHT_COLOR,
+                                           width=line_width,
+                                           tags=(split.d if split.t is None else '')
+                                           )
 
         self.line_to_part[new_line] = part
 
@@ -92,7 +93,7 @@ class BBDraw:
         w = self.part_width // 2
 
         dxy = [[-1, -1], [1, -1],
-               [-1,  1], [1,  1]]
+               [-1, 1], [1, 1]]
 
         for i in range(4):
             dxdy = dxy[i]
@@ -170,7 +171,7 @@ class BBDraw:
         if self._draw_job is not None:
             self.root.after_cancel(self._draw_job)
         self.root.attributes('-alpha', self.c.DEFAULT_OPACITY)
-        self.root.after(self.c.CLEAR_TIMEOUT, self.fade_out)
+        self._draw_job = self.root.after(self.c.CLEAR_TIMEOUT, self.fade_out)
 
     def drag_begin(self, event):
         # record the item and its location
