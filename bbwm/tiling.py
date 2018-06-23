@@ -48,9 +48,15 @@ class ManualTilingScheme(TileScheme):
 
 
 class DefaultTilingScheme(TileScheme):
-    def __init__(self):
+    def __init__(self, landscape=True):
         super().__init__()
         self.tile_count = 0
+        if landscape:
+            self.even_split = 'h'
+            self.odd_split = 'v'
+        else:
+            self.even_split = 'v'
+            self.odd_split = 'h'
 
     def tile(self, part, new_win=None):
         if new_win is not None:
@@ -63,12 +69,12 @@ class DefaultTilingScheme(TileScheme):
                 new_win.part = part
                 return
         if self.tile_count == 0:
-            nps = part.split_h(0.67, new_win)
+            nps = part._split(self.even_split, 0.67, new_win)
         else:
             if self.tile_count % 2 == 0:
-                nps = part.split_h(0.5, new_win)
+                nps = part._split(self.even_split, 0.5, new_win)
             else:
-                nps = part.split_v(0.5, new_win)
+                nps = part._split(self.odd_split, 0.5, new_win)
         if nps is not None:
             self.tile_count += 1
             for p in nps:

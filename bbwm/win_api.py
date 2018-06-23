@@ -110,6 +110,13 @@ class WinWin:
         except:
             pass
 
+    @property
+    def title(self):
+        try:
+            return win32gui.GetWindowText(self.hwnd)
+        except:
+            return ''
+
 
 class WinMethods:
     def __init__(self, msg_processor=None):
