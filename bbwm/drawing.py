@@ -5,6 +5,8 @@ class BBDraw:
     def __init__(self, root, monitor_bbox, c):
         self.c = c  # config
 
+        self.m_bbox = monitor_bbox
+
         self.root = root
         self.root.title('bbwm')
         self.root.attributes('-alpha', self.c.DEFAULT_OPACITY)
@@ -12,10 +14,11 @@ class BBDraw:
         root.wm_attributes("-transparentcolor", self.c.TRANSPARENT_COLOR)
         root.overrideredirect(True)
 
-        width, height = monitor_bbox[2] - monitor_bbox[0], monitor_bbox[3] - monitor_bbox[1]
-        w, h = width + 2 * c.OFF_SCREEN, height + 2 * c.OFF_SCREEN
-        x, y = -c.OFF_SCREEN, -c.OFF_SCREEN
+        self.max_w, self.max_h = self.m_bbox[2] - self.m_bbox[0], self.m_bbox[3] - self.m_bbox[1]
+        w, h = self.max_w + 2 * c.OFF_SCREEN, self.max_h + 2 * c.OFF_SCREEN
+        x, y = self.m_bbox[0] - c.OFF_SCREEN, self.m_bbox[1] - c.OFF_SCREEN
         self.root.geometry('%dx%d+%d+%d' % (w, h, x, y))
+        self._x_o, self._y_o = -x, -y
 
         self.part_width = max(min(self.c.INNER_SPACING_X, self.c.INNER_SPACING_Y) - 2, 2)
 
@@ -37,11 +40,12 @@ class BBDraw:
 
         # for menu stuff
 
-        self._click_to_fun = {}
+        self._click_to_fun = []
+        self._button_binds = []
 
     def _dims_to_canvas_coords(self, dims):
         x, y, w, h = dims.x, dims.y, dims.w, dims.h
-        x, y = x + self.c.OFF_SCREEN, y + self.c.OFF_SCREEN
+        x, y = x + self._x_o, y + self._y_o
         rx = x + w
         by = y + h
         return x, y, rx, by
@@ -65,7 +69,7 @@ class BBDraw:
         is_x, is_y = self.c.INNER_SPACING_X, self.c.INNER_SPACING_Y
 
         x, y, w, h = dims.x, dims.y, dims.w, dims.h
-        x, y = x + self.c.OFF_SCREEN + is_x / 2, y + self.c.OFF_SCREEN + is_y / 2
+        x, y = x + self._x_o + is_x / 2, y + self._y_o + is_y / 2
         w, h = w - is_x, h - is_y
 
         line_width = [is_x, is_y][d_i]
@@ -89,7 +93,7 @@ class BBDraw:
 
     def draw_menu(self, tags_to_funs):
         x, y = self.root.winfo_pointerx(), self.root.winfo_pointery()
-        x, y = x + self.c.OFF_SCREEN, y + self.c.OFF_SCREEN
+        x, y = x + self._x_o, y + self._y_o
         w = self.part_width // 2
 
         dxy = [[-1, -1], [1, -1],
@@ -113,6 +117,54 @@ class BBDraw:
         self.reset_menu(tags_to_funs)
         self.root.bind('<FocusOut>', self.lost_focus)
 
+    def calc_mon_offset(self):
+        # some sort of max bbox scaling probably better
+
+        x, y = self.root.winfo_pointerx(), self.root.winfo_pointery()
+        x, y = x + self._x_o, y + self._y_o
+        # x & y are relative top top left corner of all monitors
+        # so that midpoint will be where your mouse is
+        x, y = x - self.max_w // 20, y - self.max_h // 20
+        return x, y
+
+    def draw_monitor(self, dims, x_o, y_o):
+
+        # translate n scale
+        x1 = x_o + (dims.x - self.m_bbox[0]) // 10
+        y1 = y_o + (dims.y - self.m_bbox[1]) // 10
+
+        x2 = x1 + dims.w // 10
+        y2 = y1 + dims.h // 10
+
+        self.canvas.create_rectangle(x1, y1, x2, y2,
+                                     outline=self.c.BORDER_HIGHLIGHT_COLOR,
+                                     fill=self.c.BORDER_COLOR,
+                                     width=2)
+
+    def draw_win(self, dims, x_o, y_o, i, active=False):
+        x1 = x_o + (dims.x - self.m_bbox[0]) // 10
+        y1 = y_o + (dims.y - self.m_bbox[1]) // 10
+
+        x2 = x1 + dims.w // 10
+        y2 = y1 + dims.h // 10
+
+        self.canvas.create_rectangle(x1 + 1, y1 + 1, x2 - 2, y2 - 2,
+                                     outline=self.c.BORDER_HIGHLIGHT_COLOR,
+                                     fill=self.c.BORDER_HIGHLIGHT_COLOR if active else self.c.SELECTION_COLOR)
+
+        self.canvas.create_text((x1 + x2) // 2, (y1 + y2) // 2,
+                                fill='white',
+                                font=self.c.FONT,
+                                text=i)
+
+    def draw_menu_list(self, menu_list, x_o, y_o):
+        for m_kb, _, m_fun in menu_list:
+            if len(str(m_kb)) == 1:
+                self.canvas.bind(m_kb, m_fun)
+                self._button_binds.append(m_kb)
+        self.canvas.focus_force()
+        self.root.bind('<FocusOut>', self.lost_focus)
+
     def _menu_help(self, fun):
         def new_fun(e):
             fun()
@@ -120,6 +172,11 @@ class BBDraw:
         return new_fun
 
     def reset_menu(self, tag_to_fun=[]):
+
+        for kb in self._button_binds:
+            self.canvas.unbind(kb)
+        self._button_binds = []
+
         for tag in self._click_to_fun:
             self.canvas.tag_unbind(tag, "<ButtonPress-1>")
 

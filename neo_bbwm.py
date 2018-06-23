@@ -224,6 +224,36 @@ class BBWM:
         self.change_scheme(h_ts)
 
     # gui
+    def _part_picker(self, part):
+        p = part
+
+        def picker_fun(*args):
+            self.workspace.cur_part = p
+            self.refocus()
+            self.gui.fade_immediately()
+
+        return picker_fun
+
+    def draw_workspaces(self):
+        self.gui.clear_screen()
+        win_list = []
+        x, y = self.gui.calc_mon_offset()
+        for i, (_, display_dims) in enumerate(self.win_methods.monitors):
+            self.gui.draw_monitor(display_dims, x, y)
+            if i == self.display_ind:
+                all_parts = self.workspace.find_leaf_parts()
+                cur_part = self.workspace.cur_part
+                c = 1
+                for p in all_parts:
+                    if p.window is not None:
+                        txt = c
+                        win_list.append((c, p.window.title, self._part_picker(p)))
+                    else:
+                        txt = ''
+                    self.gui.draw_win(p.dims.get_win_dims(self.c), x, y, txt, p == cur_part)
+                    c += 1
+        self.gui.draw_menu_list(win_list, x, y)
+        self.gui.fade_in()
 
     def draw_parts(self):
         self.gui.clear_screen()
@@ -291,6 +321,7 @@ class BBWM:
         keyboard.add_hotkey('windows+page down', self.change_display, args=[-1], trigger_on_release=True)
 
         keyboard.add_hotkey('ctrl+alt+q', self.quit_helper)
+        keyboard.add_hotkey('ctrl+alt+w', self.draw_workspaces)
         keyboard.add_hotkey('ctrl+alt+r', self.debug_display)
 
     def process_msgs(self, msg):

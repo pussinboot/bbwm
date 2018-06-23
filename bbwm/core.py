@@ -13,7 +13,8 @@ class Workspace:
         self.base_dims = base_dims
 
         if tile_scheme is None:
-            tile_scheme = DefaultTilingScheme()
+
+            tile_scheme = DefaultTilingScheme(base_dims.w > base_dims.h)
             # tile_scheme = HorizontalTilingScheme()
         self.tile_scheme = tile_scheme
 
@@ -409,17 +410,20 @@ class Config:
 
         # gui stuff
 
-        self.CLEAR_TIMEOUT = 666
+        self.CLEAR_TIMEOUT = 222
         self.DEFAULT_OPACITY = 0.77
         self.PRETTY_WINS = True
         self.FONT = ('IBM 3161', 14)
 
         # colors
         self.TRANSPARENT_COLOR = '#0DEAD0'
+
         self.BORDER_HIGHLIGHT_COLOR = 'gray'
         self.BORDER_COLOR = 'black'
-        self.CURSOR_COLOR = 'blue'
 
+        self.SELECTION_COLOR = '#222222'
+
+        self.CURSOR_COLOR = 'blue'
         self.FAKE_WIN_COLOR = 'red'
 
 
