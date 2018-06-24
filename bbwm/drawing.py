@@ -72,19 +72,19 @@ class BBDraw:
         x, y = x + self._x_o + is_x / 2, y + self._y_o + is_y / 2
         w, h = w - is_x, h - is_y
 
-        line_width = [is_x, is_y][d_i]
+        line_width = [is_x, is_y][d_i] * 2
 
         rx = x + int((w) * split.r) * (d_i) + (w) * (1 - d_i)
         by = y + int((h) * split.r) * (1 - d_i) + (h) * (d_i)
 
         if d_i:
-            x = rx
+            x = rx + 1
         else:
-            y = by
+            y = by + 1
 
         new_line = self.canvas.create_line(x, y, rx, by,
-                                           fill=self.c.BORDER_COLOR,
-                                           activefill=self.c.BORDER_HIGHLIGHT_COLOR,
+                                           fill=self.c.BORDER_HIGHLIGHT_COLOR,
+                                           activefill=self.c.BORDER_COLOR,
                                            width=line_width,
                                            tags=(split.d if split.t is None else '')
                                            )
