@@ -130,7 +130,9 @@ class BBWM:
     def tile(self):
         win = self.win_methods.get_focused_window()
         if win is not None and win.part is None:
-            self.workspace.tile(win)
+            if not self.workspace.tile(win):
+                return
+
             if self.c.PRETTY_WINS:
                 win.undecorate()
             self.resize_wins()
@@ -139,10 +141,17 @@ class BBWM:
             self.draw_parts()
 
     def tile_dir(self, d):
+        new_win = self.win_methods.get_focused_window()
+        new_win = None if new_win.part is not None else new_win
+
+        if new_win is not None and self.c.PRETTY_WINS:
+            new_win.undecorate()
+
         if d == 'v':
-            self.workspace.split_v()
+            self.workspace.split_v(new_win=new_win)
         else:
-            self.workspace.split_h()
+            self.workspace.split_h(new_win=new_win)
+
         self.resize_wins()
         self.refocus()
         # gui
@@ -248,10 +257,10 @@ class BBWM:
                     if p.window is not None:
                         txt = c
                         win_list.append((c, p.window.title, self._part_picker(p)))
+                        c += 1
                     else:
                         txt = ''
                     self.gui.draw_win(p.dims.get_win_dims(self.c), x, y, txt, p == cur_part)
-                    c += 1
         self.gui.draw_menu_list(win_list, x, y)
         self.gui.fade_in()
 
@@ -287,19 +296,15 @@ class BBWM:
 
     def setup_hotkeys(self):
         keyboard.add_hotkey('windows+z', self.tile)
+        keyboard.add_hotkey('windows+d', self.rotate)
+        keyboard.add_hotkey('windows+x', self.untile)
 
         keyboard.add_hotkey('windows+a', self.tile_dir, args=['h'])
         keyboard.add_hotkey('windows+s', self.tile_dir, args=['v'])
 
         keyboard.add_hotkey('windows+f', self.draw_splits)
-        keyboard.add_hotkey('windows+c', self.draw_menu)
-
-        keyboard.add_hotkey('windows+d', self.rotate)
-
-        keyboard.add_hotkey('windows+q', self.tile_dir, args=['h', False])
-        keyboard.add_hotkey('windows+w', self.tile_dir, args=['v', False])
-
-        keyboard.add_hotkey('windows+x', self.untile)
+        keyboard.add_hotkey('windows+q', self.draw_menu)
+        keyboard.add_hotkey('windows+w', self.draw_workspaces)
 
         keyboard.add_hotkey('windows+left', self.move_and_focus, args=['l'], trigger_on_release=True)
         keyboard.add_hotkey('windows+right', self.move_and_focus, args=['r'], trigger_on_release=True)
@@ -321,7 +326,6 @@ class BBWM:
         keyboard.add_hotkey('windows+page down', self.change_display, args=[-1], trigger_on_release=True)
 
         keyboard.add_hotkey('ctrl+alt+q', self.quit_helper)
-        keyboard.add_hotkey('ctrl+alt+w', self.draw_workspaces)
         keyboard.add_hotkey('ctrl+alt+r', self.debug_display)
 
     def process_msgs(self, msg):

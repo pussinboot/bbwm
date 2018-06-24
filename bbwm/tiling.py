@@ -38,6 +38,7 @@ class ManualTilingScheme(TileScheme):
                 # add to current partition if it's empty
                 part.window = new_win
                 new_win.part = part
+                return part
 
     def manual_tile(self, parts, new_win=None):
         for p in parts:
@@ -67,7 +68,7 @@ class DefaultTilingScheme(TileScheme):
                 # first add to current partition if it's empty
                 part.window = new_win
                 new_win.part = part
-                return
+                return part
         if self.tile_count == 0:
             nps = part._split(self.even_split, 0.67, new_win)
         else:

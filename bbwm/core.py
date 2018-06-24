@@ -192,6 +192,7 @@ class Workspace:
         np = self.cur_part.assoc_ts.tile(self.cur_part, new_win)
         if np is not None:
             self.cur_part = np
+            return True
 
     def rotate(self, part=None):
         if part is None:
