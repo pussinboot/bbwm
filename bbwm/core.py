@@ -398,6 +398,7 @@ class Config:
         self.OFF_SCREEN = max(self.BORDER_OFFSETS) + 50
 
         self.MIN_RATIO = 0.05
+        self.N_KB_RATIOS = 6
 
         # inner spacing
         self.INNER_SPACING_X = 10
