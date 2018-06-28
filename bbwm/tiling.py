@@ -70,7 +70,7 @@ class DefaultTilingScheme(TileScheme):
                 new_win.part = part
                 return part
         if self.tile_count == 0:
-            nps = part._split(self.even_split, 0.67, new_win)
+            nps = part._split(self.even_split, 2 / 3, new_win)
         else:
             if self.tile_count % 2 == 0:
                 nps = part._split(self.even_split, 0.5, new_win)
