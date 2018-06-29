@@ -87,6 +87,8 @@ class BBWM:
         if self.workspace.cur_part.window is not None:
             self.workspace.cur_part.window.focus(True)
 
+        self.draw_parts()
+
     def change_display(self, d):
 
         self.display_ind = (self.display_ind + d) % self.num_displays
@@ -96,6 +98,8 @@ class BBWM:
             cp.window.focus(True)
         else:
             self.win_methods.set_mouse_pos(cp.dims)
+
+        self.draw_parts()
 
     def debug_display(self):
         print(self.workspace)
@@ -116,8 +120,6 @@ class BBWM:
 
         move_dir_funs[d]()
         self.refocus()
-        # gui
-        self.draw_parts()
 
     def swap_and_focus(self, d):
         swap_dir_funs = {
@@ -141,6 +143,7 @@ class BBWM:
                 cp.window.focus(True)
             # move mouse to (empty) partition
             self.win_methods.set_mouse_pos(cp.dims)
+            self.draw_parts()
 
     # tiling
 
@@ -154,8 +157,6 @@ class BBWM:
                 win.undecorate()
             self.resize_wins()
             self.refocus()
-            # gui
-            self.draw_parts()
 
     def tile_dir(self, d):
         if keyboard.is_pressed('shift'):
@@ -173,15 +174,12 @@ class BBWM:
 
         self.resize_wins()
         self.refocus()
-        # gui
-        self.draw_parts()
 
     def untile(self):
         untiled_part = self.workspace.untile()
         if untiled_part is None:
             return
-        self.resize_wins()
-        self.refocus()
+
         win = untiled_part.window
         if win is not None:
             if self.c.PRETTY_WINS:
@@ -191,8 +189,9 @@ class BBWM:
                 del self.win_methods.hwnd_to_win[win.hwnd]
             if win.part is not None:
                 win.part.window = None
-        # gui
-        self.draw_parts()
+
+        self.resize_wins()
+        self.refocus()
 
     # editing partitions
 
@@ -200,8 +199,6 @@ class BBWM:
         self.workspace.rotate()
         self.resize_wins()
         self.refocus()
-        # gui
-        self.draw_parts()
 
     def resplit(self, part, new_r, redraw=True):
         self.workspace.resplit(part, new_r)
@@ -259,14 +256,13 @@ class BBWM:
         def picker_fun(*args):
             self.workspace.cur_part = p
             self.refocus()
-            self.gui.fade_immediately()
 
         return picker_fun
 
-    def draw_workspaces(self):
+    def _draw_workspaces(self):
         self.gui.clear_screen()
         win_list = []
-        x, y = self.gui.calc_mon_offset()
+        x, y = self.gui._calc_mon_offset()
         d_i = self.display_ind
         l_m = len(self.win_methods.monitors)
         monitor_hints = {((d_i - 1) % l_m): 'Pg ⇩', ((d_i + 1) % l_m): 'Pg ⇧'}
@@ -289,27 +285,36 @@ class BBWM:
         self.gui.draw_menu_list(win_list, self.display_changers, x, y)
         self.gui.fade_in()
 
+    def draw_workspaces(self):
+        self.gui.fade_out(lambda: self._draw_workspaces())
+
     def draw_parts(self):
-        self.gui.clear_screen()
         all_parts = self.workspace.find_leaf_parts()
         cur_part = self.workspace.cur_part
-        for p in all_parts:
-            self.gui.draw_part(p.dims.get_win_dims(self.c), cur_part == p)
-        self.gui.fade_immediately()
+
+        def draw_later():
+            self.gui.clear_screen()
+            for p in all_parts:
+                self.gui.draw_part(p.dims.get_win_dims(self.c), cur_part == p)
+            self.gui.fade_in(self.gui.fade_out_later)
+
+        self.gui.fade_out(draw_later)
 
     def _redraw_splits(self):
         self.gui.draw_part(self.cur_adjust_part.dims, True, True)
         self.gui.draw_split(self.cur_adjust_part, True)
 
-    def draw_splits(self):
+    def _first_draw_splits(self):
         self.gui.clear_screen()
+        self._redraw_splits()
+        self.gui.fade_in()
+
+    def draw_splits(self):
         self.cur_adjust_part = self.workspace.cur_part.parent
         if self.cur_adjust_part is None:
             return
 
         self.cur_adjust_stack = []
-        self.gui.rdy_to_split()
-        self._redraw_splits()
 
         def gen_adjust_fun(adj):
             d = adj
@@ -359,13 +364,9 @@ class BBWM:
         ]
 
         self.gui.split_menu(temp_binds)
-
-        # all_parts_with_splits = self.workspace.find_all_splits()
-        # for p in all_parts_with_splits:
-        #     self.gui.draw_split(p)
+        self.gui.fade_out(self._first_draw_splits)
 
     def draw_menu(self):
-        self.gui.clear_screen()
 
         tags_to_funs = [
             ('dflt', self.to_default_scheme),
@@ -374,8 +375,12 @@ class BBWM:
             ('vert', lambda: print('not implemented yet')),
         ]
 
-        self.gui.draw_menu(tags_to_funs)
-        self.gui.fade_in()
+        def draw_later():
+            self.gui.clear_screen()
+            self.gui.draw_menu(tags_to_funs)
+            self.gui.fade_in()
+
+        self.gui.fade_out(draw_later)
 
     # maint
 
@@ -428,9 +433,8 @@ class BBWM:
             if w is not None and w.part is not None:
                 self.display_ind = msg[2]
                 self.workspace.cur_part = w.part
-                if self._just_closed:
-                    self.refocus()
-
+            if self._just_closed:
+                self.refocus()
             self._just_closed = False
         elif msg[0] == 'close_win':
             # apparently hiding windows sends the same msg as closing them..

@@ -408,7 +408,7 @@ class Config:
 
         # gui stuff
 
-        self.CLEAR_TIMEOUT = 222
+        self.CLEAR_TIMEOUT = 333
         self.DEFAULT_OPACITY = 0.77
         self.PRETTY_WINS = True
         self.FONT = ('IBM 3161', 14)
