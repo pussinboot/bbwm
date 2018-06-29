@@ -35,6 +35,8 @@ class BBWM:
         # gui
         self.gui = bb_draw.BBDraw(root, self.win_methods.monitor_bbox, self.c)
         self.gui.resplit_fun = self.resplit
+        self.gui.unfocus_fun = self.refocus
+        # self.win_methods.hwnd_to_win[self.gui.hwnd] = None
 
         # setup keybinds
         self.setup_hotkeys()
@@ -331,18 +333,24 @@ class BBWM:
         def go_down(*args):
             if self.cur_adjust_part.is_empty:
                 return
-            if len(self.cur_adjust_stack) == 0:
-                return
-            self.cur_adjust_part = self.cur_adjust_stack.pop()
-            self._redraw_splits()
+            elif len(self.cur_adjust_stack) != 0:
+                self.cur_adjust_part = self.cur_adjust_stack.pop()
+                self._redraw_splits()
+            else:
+                poss_next = [c for c in self.cur_adjust_part.children if c.split is not None]
+                if len(poss_next) == 0:
+                    return
+                self.cur_adjust_part = poss_next[0]
+                self._redraw_splits()
 
         def go_next(*args):
             poss_next = [c for c in self.cur_adjust_part.siblings if c.split is not None]
             lpn = len(poss_next)
-            if lpn == 0 or lpn == 1:
+            if lpn <= 1:
                 return
             cur_i = poss_next.index(self.cur_adjust_part)
             self.cur_adjust_part = poss_next[(cur_i + 1) % lpn]
+            self.cur_adjust_stack = []
             self._redraw_splits()
 
         temp_binds = [
@@ -422,6 +430,7 @@ class BBWM:
                 self.workspace.cur_part = w.part
                 if self._just_closed:
                     self.refocus()
+
             self._just_closed = False
         elif msg[0] == 'close_win':
             # apparently hiding windows sends the same msg as closing them..
@@ -443,7 +452,10 @@ class BBWM:
     def quit_helper(self):
         if self.c.PRETTY_WINS:
             for _, w in self.win_methods.hwnd_to_win.items():
-                w.redecorate()
+                try:
+                    w.redecorate()
+                except:
+                    pass
         if self.win_methods.spy is not None:
             self.win_methods.spy.destroy()
         self.gui.root.destroy()

@@ -68,6 +68,17 @@
   return
 }
 
+;; ignore these
+#+Up::
+{
+  return
+}
+
+#+Down::
+{
+  return
+}
+
 #Left::
 {
   return

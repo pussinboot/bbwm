@@ -1,9 +1,5 @@
-try:
-    from tiling import DefaultTilingScheme, HorizontalTilingScheme
-    from geometry import Dims, Split
-except:
-    from .tiling import DefaultTilingScheme, HorizontalTilingScheme
-    from .geometry import Dims, Split
+from .tiling import DefaultTilingScheme
+from .geometry import Dims, Split
 
 
 # boxing
@@ -427,18 +423,3 @@ class Config:
 
         self.CURSOR_COLOR = 'blue'
         self.FAKE_WIN_COLOR = 'red'
-
-
-if __name__ == '__main__':
-    desktop = Dims(0, 0, 400, 225)
-    ws = Workspace(desktop)
-    ws.tile()
-    ws.tile()
-    # nl = ws.find_leaf_parts()
-    # print(nl)
-    # print()
-    # bu = ws._bottom_up_traverse(nl[-2])
-    # for p in bu:
-    #     print(p)
-    # print(ws.find_neighbors('h', nl[0]))
-    print(ws)

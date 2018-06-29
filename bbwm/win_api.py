@@ -1,16 +1,15 @@
-import win32con, win32gui, win32api
+import threading
+import win32con
+import win32gui
+import win32api
+
 import win32com.client
 from ctypes import windll
 
-import threading
+from .core import Dims
 
-import time
-
-
-try:
-    from core import Dims, Workspace
-except:
-    from .core import Dims, Workspace
+# regex for custom stuff
+BANNED_WINDOW_TITLES = ['__bbwm__', 'Cortana', 'BlackBox']
 
 
 class WinWin:
@@ -18,6 +17,9 @@ class WinWin:
         self.hwnd = handle
         self.part = None
         self.shell = shell
+
+    def __str__(self):
+        return 'win: {}'.format(self.hwnd)
 
     @property
     def dims(self):
@@ -123,7 +125,7 @@ class WinMethods:
         self.monitors = []
         self.find_monitors()
 
-        self.hwnd_to_win = {}
+        self.hwnd_to_win = {0: None}
 
         if msg_processor is None:
             def msg_processor(m):
@@ -178,7 +180,10 @@ class WinMethods:
     def _get_or_add_win(self, hwnd, add_it=True):
         if hwnd not in self.hwnd_to_win:
             if add_it:
-                self.hwnd_to_win[hwnd] = WinWin(hwnd, self.shell)
+                new_win = WinWin(hwnd, self.shell)
+                if new_win.title in BANNED_WINDOW_TITLES:
+                    return
+                self.hwnd_to_win[hwnd] = new_win
             else:
                 return
         return self.hwnd_to_win[hwnd]
