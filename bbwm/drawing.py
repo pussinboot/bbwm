@@ -8,11 +8,11 @@ class BBDraw:
         self.m_bbox = monitor_bbox
 
         self.root = root
-        self.root.title('bbwm')
+        self.root.title('__bbwm__')
         self.root.attributes('-alpha', self.c.DEFAULT_OPACITY)
-        root.wm_attributes("-topmost", True)
-        root.wm_attributes("-transparentcolor", self.c.TRANSPARENT_COLOR)
-        root.overrideredirect(True)
+        self.root.wm_attributes("-topmost", True)
+        self.root.wm_attributes("-transparentcolor", self.c.TRANSPARENT_COLOR)
+        self.root.overrideredirect(True)
 
         self.max_w, self.max_h = self.m_bbox[2] - self.m_bbox[0], self.m_bbox[3] - self.m_bbox[1]
         w, h = self.max_w + 2 * c.OFF_SCREEN, self.max_h + 2 * c.OFF_SCREEN
@@ -22,7 +22,7 @@ class BBDraw:
 
         self.part_width = max(min(self.c.INNER_SPACING_X, self.c.INNER_SPACING_Y) - 2, 2)
 
-        self.canvas = tk.Canvas(root, width=w, height=h, bg=self.c.TRANSPARENT_COLOR)
+        self.canvas = tk.Canvas(root, width=w, height=h, bg=self.c.TRANSPARENT_COLOR, highlightthickness=0)
         self.canvas.pack()
 
         # for resizing partitions
@@ -36,6 +36,7 @@ class BBDraw:
         self._last_part = None
 
         self.resplit_fun = None
+        self.unfocus_fun = None
 
         for d in ['h', 'v']:
             self.canvas.tag_bind(d, "<ButtonPress-1>", self.drag_begin)
@@ -92,9 +93,9 @@ class BBDraw:
 
         # still not quite...
         if d_i:
-            x = rx + 1
+            x = rx  # + 1
         else:
-            y = by + 1
+            y = by  # + 1
 
         return x, y, rx, by, l_thicc
 
@@ -237,6 +238,8 @@ class BBDraw:
         self.reset_menu()
         self.fade_out()
         self.root.unbind('<FocusOut>')
+        if self.unfocus_fun is not None:
+            self.unfocus_fun()
 
     def clear_screen(self):
         self.canvas.delete('all')

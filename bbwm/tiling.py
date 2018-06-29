@@ -1,9 +1,6 @@
 import abc
 
-try:
-    from geometry import Split
-except:
-    from .geometry import Split
+from .geometry import Split
 
 
 # tiling logic
