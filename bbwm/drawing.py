@@ -25,6 +25,10 @@ class BBDraw:
         self.canvas = tk.Canvas(root, width=w, height=h, bg=self.c.TRANSPARENT_COLOR, highlightthickness=0)
         self.canvas.pack()
 
+        # for fading
+        self._fade_dt = 0
+        self._fade_to = 0
+
         # for resizing partitions
 
         self._draw_job = None
@@ -48,34 +52,14 @@ class BBDraw:
         self._click_to_fun = []
         self._button_binds = []
 
+    # -- helper calcs -- #
+
     def _dims_to_canvas_coords(self, dims):
         x, y, w, h = dims.x, dims.y, dims.w, dims.h
         x, y = x + self._x_o, y + self._y_o
         rx = x + w
         by = y + h
         return x, y, rx, by
-
-    def write_centered_text(self, x1, x2, y1, y2, text, tags=[]):
-        self.canvas.create_text((x1 + x2) // 2, (y1 + y2) // 2,
-                                fill=self.c.BORDER_HIGHLIGHT_COLOR,
-                                font=self.c.FONT,
-                                text=text, tags=tags)
-
-    def draw_part(self, dims, current, single=False):
-        outline = self.c.BORDER_HIGHLIGHT_COLOR if current else self.c.BORDER_COLOR
-
-        rect = self.canvas.create_rectangle(*self._dims_to_canvas_coords(dims),
-                                            outline=outline, width=self.part_width)
-
-        if single:
-            if self._last_part is not None:
-                self.canvas.delete(self._last_part)
-            self._last_part = rect
-
-    def rdy_to_split(self):
-        if self._draw_job is not None:
-            self.root.after_cancel(self._draw_job)
-        self.root.attributes('-alpha', self.c.DEFAULT_OPACITY)
 
     def _calc_split_line(self, part):
         dims, split = part.dims, part.split
@@ -99,11 +83,76 @@ class BBDraw:
 
         return x, y, rx, by, l_thicc
 
+    def _calc_mon_offset(self):
+        # some sort of max bbox scaling probably better
+
+        x, y = self.root.winfo_pointerx(), self.root.winfo_pointery()
+        x, y = x + self._x_o, y + self._y_o
+        # x & y are relative top top left corner of all monitors
+        # so that midpoint will be where your mouse is
+        x, y = x - self.max_w // 20, y - self.max_h // 20
+        return x, y
+
+    # -- helper funs -- #
+
+    def clear_screen(self):
+        self.canvas.delete('all')
+        del self.line_to_part
+        self.line_to_part = {}
+
+        self._last_split = None
+        self._last_part = None
+
+    def lost_focus(self, e):
+        self.reset_menu()
+        self.fade_out()
+        self.root.unbind('<FocusOut>')
+        if self.unfocus_fun is not None:
+            self.unfocus_fun()
+
+    def _menu_help(self, fun):
+        def new_fun(e):
+            fun()
+            self.fade_out()
+        return new_fun
+
+    def reset_menu(self, tag_to_fun=[]):
+
+        for kb in self._button_binds:
+            self.canvas.unbind(kb)
+        self._button_binds = []
+
+        for tag in self._click_to_fun:
+            self.canvas.tag_unbind(tag, "<ButtonPress-1>")
+
+        self._click_to_fun = []
+        for (tag, fun) in tag_to_fun:
+            self._click_to_fun.append(tag)
+            self.canvas.tag_bind(tag, "<ButtonPress-1>", self._menu_help(fun))
+
+    # -- basic draws -- #
+
+    def write_centered_text(self, x1, x2, y1, y2, text, tags=[]):
+        self.canvas.create_text((x1 + x2) // 2, (y1 + y2) // 2,
+                                fill=self.c.BORDER_HIGHLIGHT_COLOR,
+                                font=self.c.FONT,
+                                text=text, tags=tags)
+
+    def draw_part(self, dims, current, single=False):
+        outline = self.c.BORDER_HIGHLIGHT_COLOR if current else self.c.BORDER_COLOR
+
+        rect = self.canvas.create_rectangle(*self._dims_to_canvas_coords(dims),
+                                            outline=outline, width=self.part_width)
+
+        if single:
+            if self._last_part is not None:
+                self.canvas.delete(self._last_part)
+            self._last_part = rect
+
     def draw_split(self, part, single=False):
         split = part.split
         if split.t is not None:  # for now we will not draw equal spaced splits
             return
-
         x, y, rx, by, w = self._calc_split_line(part)
 
         new_line = self.canvas.create_line(x, y, rx, by,
@@ -116,60 +165,7 @@ class BBDraw:
             if self._last_split is not None:
                 self.canvas.delete(self._last_split)
             self._last_split = new_line
-        else:
-            self.line_to_part[new_line] = part
-
-    def move_split(self, part, the_line=None):
-        if the_line is None:
-            the_line = self._last_split
-        if the_line is None:
-            return
-        x, y, rx, by, _ = self._calc_split_line(part)
-        self.canvas.coords(the_line, x, y, rx, by)
-
-    def split_menu(self, split_funs):
-        for s_kb, s_fun in split_funs:
-            self.canvas.bind(s_kb, s_fun)
-            self._button_binds.append(s_kb)
-
-        self.canvas.bind('<Escape>', self.lost_focus)
-        self._button_binds.append('<Escape>')
-
-        self.canvas.focus_force()
-        self.root.bind('<FocusOut>', self.lost_focus)
-
-    def draw_menu(self, tags_to_funs):
-        x, y = self.root.winfo_pointerx(), self.root.winfo_pointery()
-        x, y = x + self._x_o, y + self._y_o
-        w = self.part_width // 2
-
-        dxy = [[-1, -1], [1, -1],
-               [-1, 1], [1, 1]]
-
-        for i in range(4):
-            dxdy = dxy[i]
-            x2, y2 = x + 75 * dxdy[0], y + 75 * dxdy[1]
-            tag = tags_to_funs[i][0]
-            self.canvas.create_rectangle(min(x, x2), min(y, y2),
-                                         max(x, x2), max(y, y2),
-                                         outline=self.c.BORDER_HIGHLIGHT_COLOR,
-                                         fill=self.c.BORDER_COLOR,
-                                         width=w,
-                                         tags=(tag))
-            self.write_centered_text(x, x2, y, y2, tag, tags=(tag))
-
-        self.reset_menu(tags_to_funs)
-        self.root.bind('<FocusOut>', self.lost_focus)
-
-    def calc_mon_offset(self):
-        # some sort of max bbox scaling probably better
-
-        x, y = self.root.winfo_pointerx(), self.root.winfo_pointery()
-        x, y = x + self._x_o, y + self._y_o
-        # x & y are relative top top left corner of all monitors
-        # so that midpoint will be where your mouse is
-        x, y = x - self.max_w // 20, y - self.max_h // 20
-        return x, y
+        self.line_to_part[new_line] = part
 
     def draw_monitor(self, dims, x_o, y_o, text=''):
 
@@ -198,6 +194,52 @@ class BBDraw:
                                      fill=self.c.BORDER_HIGHLIGHT_COLOR if active else self.c.SELECTION_COLOR)
         self.write_centered_text(x1, x2, y1, y2, i)
 
+    # -- splits -- #
+
+    def move_split(self, part, the_line=None):
+        if the_line is None:
+            the_line = self._last_split
+        if the_line is None:
+            return
+        x, y, rx, by, _ = self._calc_split_line(part)
+        self.canvas.coords(the_line, x, y, rx, by)
+
+    def split_menu(self, split_funs):
+        for s_kb, s_fun in split_funs:
+            self.canvas.bind(s_kb, s_fun)
+            self._button_binds.append(s_kb)
+
+        self.canvas.bind('<Escape>', self.lost_focus)
+        self._button_binds.append('<Escape>')
+
+        self.canvas.focus_force()
+        self.root.bind('<FocusOut>', self.lost_focus)
+
+    # -- tilescheme menu -- #
+
+    def draw_menu(self, tags_to_funs):
+        x, y = self.root.winfo_pointerx(), self.root.winfo_pointery()
+        x, y = x + self._x_o, y + self._y_o
+        w = self.part_width // 2
+
+        dxy = [[-1, -1], [1, -1],
+               [-1, 1], [1, 1]]
+
+        for i in range(4):
+            dxdy = dxy[i]
+            x2, y2 = x + 75 * dxdy[0], y + 75 * dxdy[1]
+            tag = tags_to_funs[i][0]
+            self.canvas.create_rectangle(min(x, x2), min(y, y2),
+                                         max(x, x2), max(y, y2),
+                                         outline=self.c.BORDER_HIGHLIGHT_COLOR,
+                                         fill=self.c.BORDER_COLOR,
+                                         width=w,
+                                         tags=(tag))
+            self.write_centered_text(x, x2, y, y2, tag, tags=(tag))
+
+        self.reset_menu(tags_to_funs)
+        self.root.bind('<FocusOut>', self.lost_focus)
+
     def draw_menu_list(self, menu_list, disp_list, x_o, y_o):
         for m_kb, _, m_fun in menu_list:
             if len(str(m_kb)) == 1:
@@ -214,75 +256,47 @@ class BBDraw:
         self.canvas.focus_force()
         self.root.bind('<FocusOut>', self.lost_focus)
 
-    def _menu_help(self, fun):
-        def new_fun(e):
-            fun()
-            self.fade_out()
-        return new_fun
+    # -- fading -- #
 
-    def reset_menu(self, tag_to_fun=[]):
+    def _fade(self, delay, _finally=None):
+        _to = self._fade_to
+        step = self._fade_dt
 
-        for kb in self._button_binds:
-            self.canvas.unbind(kb)
-        self._button_binds = []
-
-        for tag in self._click_to_fun:
-            self.canvas.tag_unbind(tag, "<ButtonPress-1>")
-
-        self._click_to_fun = []
-        for (tag, fun) in tag_to_fun:
-            self._click_to_fun.append(tag)
-            self.canvas.tag_bind(tag, "<ButtonPress-1>", self._menu_help(fun))
-
-    def lost_focus(self, e):
-        self.reset_menu()
-        self.fade_out()
-        self.root.unbind('<FocusOut>')
-        if self.unfocus_fun is not None:
-            self.unfocus_fun()
-
-    def clear_screen(self):
-        self.canvas.delete('all')
-        del self.line_to_part
-        self.line_to_part = {}
-
-        self._last_split = None
-        self._last_part = None
-
-    def _fade(self, _to, step, delay, _finally=None):
         progress = self.root.attributes('-alpha')
         progress += step
         self.root.attributes('-alpha', progress)
+
         if (step < 0 and progress <= _to) or (step >= 0 and progress >= _to):
             if _finally is not None:
-                self._draw_job = _finally()
+                _finally()
+            self._draw_job = None
             return
-        self._draw_job = self.root.after(delay, lambda: self._fade(_to, step, delay, _finally))
+        self._draw_job = self.root.after(delay, lambda: self._fade(delay, _finally))
 
-    def fade_out(self):
-        _from, _to = self.c.DEFAULT_OPACITY, 0
-        delay = self.c.CLEAR_TIMEOUT / 5
-        step = -_from / 5
-        delay = int(delay)
-        self._fade(_to, step, delay)
-
-    def fade_in(self, also_fade_out=False):
+    def fade_out(self, and_then=None):
         if self._draw_job is not None:
             self.root.after_cancel(self._draw_job)
-        _to = self.c.DEFAULT_OPACITY
-        delay = self.c.CLEAR_TIMEOUT / 5
-        step = _to / 5
-        delay = int(delay)
-        if also_fade_out:
-            self._fade(_to, step, delay, lambda: self.root.after(self.c.CLEAR_TIMEOUT, self.fade_out))
-        else:
-            self._fade(_to, step, delay)
 
-    def fade_immediately(self):
-        if self._draw_job is not None:
-            self.root.after_cancel(self._draw_job)
-        self.root.attributes('-alpha', self.c.DEFAULT_OPACITY)
+        self._fade_dt = -self.c.DEFAULT_OPACITY / 5
+        self._fade_to = 0
+
+        delay = int(self.c.CLEAR_TIMEOUT / 5)
+
+        self._fade(delay, and_then)
+
+    def fade_in(self, and_then=None):
+
+        self._fade_to = self.c.DEFAULT_OPACITY
+        self._fade_dt = self._fade_to / 5
+
+        delay = int(self.c.CLEAR_TIMEOUT / 5)
+
+        self._fade(delay, and_then)
+
+    def fade_out_later(self):
         self._draw_job = self.root.after(self.c.CLEAR_TIMEOUT, self.fade_out)
+
+    # -- dragging -- #
 
     def drag_begin(self, event):
         # record the item and its location
@@ -310,7 +324,7 @@ class BBDraw:
                 return
             new_r = max(min(new_r, 1 - self.c.MIN_RATIO), self.c.MIN_RATIO)
             # update it with the fun
-            self.resplit_fun(assoc_part, new_r)
+            self.resplit_fun(assoc_part, new_r, the_line != self._last_split)
 
         self._drag_data = {"x": 0, "y": 0, "item": None, 'dir': None}
 
