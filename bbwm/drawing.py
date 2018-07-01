@@ -1,4 +1,5 @@
 import tkinter as tk
+import math
 
 
 class BBDraw:
@@ -52,6 +53,8 @@ class BBDraw:
         self._click_to_fun = []
         self._button_binds = []
 
+        self._job_queue = []
+
     # -- helper calcs -- #
 
     def _dims_to_canvas_coords(self, dims):
@@ -72,8 +75,8 @@ class BBDraw:
 
         l_thicc = [is_x, is_y][d_i] * 2
 
-        rx = x + int((w) * split.r) * (d_i) + (w) * (1 - d_i)
-        by = y + int((h) * split.r) * (1 - d_i) + (h) * (d_i)
+        rx = x + math.round((w) * split.r) * (d_i) + (w) * (1 - d_i)
+        by = y + math.round((h) * split.r) * (1 - d_i) + (h) * (d_i)
 
         # still not quite...
         if d_i:
@@ -258,40 +261,32 @@ class BBDraw:
 
     # -- fading -- #
 
-    def _fade(self, delay, _finally=None):
-        _to = self._fade_to
-        step = self._fade_dt
+    def _fade(self, delay, step, _to):
 
         progress = self.root.attributes('-alpha')
         progress += step
         self.root.attributes('-alpha', progress)
 
         if (step < 0 and progress <= _to) or (step >= 0 and progress >= _to):
-            if _finally is not None:
-                _finally()
-            self._draw_job = None
+            self.next_draw()
             return
-        self._draw_job = self.root.after(delay, lambda: self._fade(delay, _finally))
+        self.root.after(delay, lambda: self._fade(delay, step, _to))
 
-    def fade_out(self, and_then=None):
-        if self._draw_job is not None:
-            self.root.after_cancel(self._draw_job)
+    def fade_out(self):
+        print('f out')
+        delay = int(self.c.CLEAR_TIMEOUT / 5)
+        step = -self.c.DEFAULT_OPACITY / 5
 
-        self._fade_dt = -self.c.DEFAULT_OPACITY / 5
-        self._fade_to = 0
+        self._fade(delay, step, 0)
+
+    def fade_in(self):
+        print('f in')
+        _to = self.c.DEFAULT_OPACITY
 
         delay = int(self.c.CLEAR_TIMEOUT / 5)
+        step = _to / 5
 
-        self._fade(delay, and_then)
-
-    def fade_in(self, and_then=None):
-
-        self._fade_to = self.c.DEFAULT_OPACITY
-        self._fade_dt = self._fade_to / 5
-
-        delay = int(self.c.CLEAR_TIMEOUT / 5)
-
-        self._fade(delay, and_then)
+        self._fade(delay, step, _to)
 
     def fade_out_later(self):
         self._draw_job = self.root.after(self.c.CLEAR_TIMEOUT, self.fade_out)
@@ -356,3 +351,84 @@ class BBDraw:
             return
 
         self.canvas.move(the_line, delta_x, delta_y)
+
+    # -- draw queue -- #
+    def enqueue_draw(self, job_type, meat_fun, pre_fun=None, post_fun=None):
+        new_job = DrawJob(job_type, meat_fun, pre_fun, post_fun)
+        self._job_queue.append(new_job)
+
+        if len(self._job_queue) == 1:
+            # start the queue
+            self.next_draw()
+            return
+
+        # last_job = self._job_queue[-2]
+        # last_job._funs[1] = None
+        # last_job._funs[2] = None
+
+        # if self._draw_job is not None:
+        #     self.root.after_cancel(self._draw_job)
+        #     self._draw_job = None
+            # self.next_draw()
+
+    def fofi_draw(self, job_type, meat_fun):
+        # fade out -> (__) -> fade in
+        pre_fun = self.fade_out
+        post_fun = self.fade_in
+
+        self.enqueue_draw(job_type, meat_fun, pre_fun, post_fun)
+
+    def _fade_in_wrap(self, to_wrap):
+        # fade in after wrapped fun
+        tw = to_wrap
+
+        def faded_fun():
+            tw()
+            self.fade_in()
+
+        return faded_fun
+
+    def fofifo_draw(self, job_type, meat_fun):
+        # fade out -> (__) -> fade in  -> fade out
+        pre_fun = self.fade_out
+        meat_wrap = self._fade_in_wrap(meat_fun)
+        post_fun = self.fade_out
+
+        self.enqueue_draw(job_type, meat_wrap, pre_fun, post_fun)
+
+    def next_draw(self):
+        if len(self._job_queue) == 0:
+            return
+        next_fun = self._job_queue[0].next_up()
+        if next_fun is None:
+            self._job_queue.pop()
+            self.next_draw()
+        else:
+            keep_going = next_fun()
+            if bool(keep_going):
+                self.next_draw()
+
+
+class DrawJob:
+    def __init__(self, job_type, meat_fun, pre_fun=None, post_fun=None):
+        """
+        pre/post funs are for fading out/in
+        meat_fun is the meat of the drawing job
+
+        eventually draw jobs of the same type can have more complex behavior
+        (recoloring things instead of clearing screen & redrawing))
+        """
+        self.job_type = job_type
+
+        self._funs = [pre_fun, meat_fun, post_fun]
+        self.last_fun_i = -1
+
+    def next_up(self):
+        if self.last_fun_i > -1:
+            self._funs[self.last_fun_i] = None
+
+        funs = [(i, f) for i, f in enumerate(self._funs) if f is not None]
+        if len(funs) == 0:
+            return
+        self.last_fun_i = funs[0][0]
+        return funs[0][1]

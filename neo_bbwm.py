@@ -296,9 +296,10 @@ class BBWM:
             self.gui.clear_screen()
             for p in all_parts:
                 self.gui.draw_part(p.dims.get_win_dims(self.c), cur_part == p)
-            self.gui.fade_in(self.gui.fade_out_later)
+            # self.gui.fade_in(self.gui.fade_out_later)
 
-        self.gui.fade_out(draw_later)
+        # self.gui.fade_out(draw_later)
+        self.gui.fofifo_draw('draw_parts', draw_later)
 
     def _redraw_splits(self):
         self.gui.draw_part(self.cur_adjust_part.dims, True, True)
@@ -391,8 +392,8 @@ class BBWM:
     def setup_hotkeys(self):
         all_binds = [
             ('windows+z', self.tile),
-            ('windows+d', self.rotate),
-            ('windows+x', self.untile),
+            ('windows+d', self.rotate, [], True),
+            ('windows+x', self.untile, [], True),
 
             ('windows+a', self.tile_dir, ['h']),
             ('windows+s', self.tile_dir, ['v']),
