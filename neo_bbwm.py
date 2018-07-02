@@ -46,7 +46,7 @@ class BBWM:
             d = dir
 
             def m_kb_fun(*args):
-                self.change_display(d)
+                self.change_display(d, False)
                 self.draw_workspaces()
 
             return m_kb_fun
@@ -89,17 +89,18 @@ class BBWM:
 
         self.draw_parts()
 
-    def change_display(self, d):
+    def change_display(self, d, redraw=True):
 
         self.display_ind = (self.display_ind + d) % self.num_displays
 
         cp = self.workspace.cur_part
-        if cp.window is not None:
+        if redraw and cp.window is not None:
             cp.window.focus(True)
         else:
             self.win_methods.set_mouse_pos(cp.dims)
 
-        self.draw_parts()
+        if redraw:
+            self.draw_parts()
 
     def debug_display(self):
         print(self.workspace)
@@ -283,10 +284,9 @@ class BBWM:
                     self.gui.draw_win(p.dims.get_win_dims(self.c), x, y, txt, p == cur_part)
 
         self.gui.draw_menu_list(win_list, self.display_changers, x, y)
-        self.gui.fade_in()
 
     def draw_workspaces(self):
-        self.gui.fade_out(lambda: self._draw_workspaces())
+        self.gui.fofi_draw('workspaces', self._draw_workspaces)
 
     def draw_parts(self):
         all_parts = self.workspace.find_leaf_parts()
@@ -296,10 +296,8 @@ class BBWM:
             self.gui.clear_screen()
             for p in all_parts:
                 self.gui.draw_part(p.dims.get_win_dims(self.c), cur_part == p)
-            # self.gui.fade_in(self.gui.fade_out_later)
 
-        # self.gui.fade_out(draw_later)
-        self.gui.fofifo_draw('draw_parts', draw_later)
+        self.gui.fofifo_draw('parts', draw_later)
 
     def _redraw_splits(self):
         self.gui.draw_part(self.cur_adjust_part.dims, True, True)
@@ -308,7 +306,6 @@ class BBWM:
     def _first_draw_splits(self):
         self.gui.clear_screen()
         self._redraw_splits()
-        self.gui.fade_in()
 
     def draw_splits(self):
         self.cur_adjust_part = self.workspace.cur_part.parent
@@ -365,7 +362,7 @@ class BBWM:
         ]
 
         self.gui.split_menu(temp_binds)
-        self.gui.fade_out(self._first_draw_splits)
+        self.gui.fofi_draw('splits', self._first_draw_splits)
 
     def draw_menu(self):
 
@@ -379,9 +376,8 @@ class BBWM:
         def draw_later():
             self.gui.clear_screen()
             self.gui.draw_menu(tags_to_funs)
-            self.gui.fade_in()
 
-        self.gui.fade_out(draw_later)
+        self.gui.fofi_draw('menu', draw_later)
 
     # maint
 
