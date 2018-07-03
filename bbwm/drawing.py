@@ -242,21 +242,44 @@ class BBDraw:
         self.reset_menu(tags_to_funs)
         self.root.bind('<FocusOut>', self.lost_focus)
 
-    def draw_menu_list(self, menu_list, disp_list, x_o, y_o):
-        for m_kb, _, m_fun in menu_list:
+    def draw_menu_list(self, menu_list, disp_list, x_o, y_o, cur_i):
+        cl = CanvasList(self.c, self.canvas, cur_i)
+
+        x1 = x_o
+        x2 = x_o + self.max_w // 10
+        n_y = y_o + self.max_h // 10 + 5
+
+        for i, (m_kb, m_title, m_fun) in enumerate(menu_list):
             if len(str(m_kb)) == 1:
                 self.canvas.bind(m_kb, m_fun)
                 self._button_binds.append(m_kb)
+
+            fill = self.c.SELECTION_COLOR if i == cur_i else self.c.BORDER_COLOR
+            new_row = self.canvas.create_rectangle(x1, n_y, x2, n_y + 23,
+                                                   outline=self.c.BORDER_HIGHLIGHT_COLOR,
+                                                   fill=fill,
+                                                   width=1, tags=('list_row'))
+            self.write_centered_text(x1, x1 + 25, n_y, n_y + 23, m_kb)
+            t_text = m_title
+            if len(t_text) > 35:
+                t_text = '{}..'.format(t_text[:33])
+            self.write_centered_text(x1, x2, n_y, n_y + 23, t_text)
+            cl.add_row(new_row, m_fun)
+            n_y += 27
 
         for d_kb, d_fun in disp_list:
             self.canvas.bind(d_kb, d_fun)
             self._button_binds.append(d_kb)
 
-        self.canvas.bind('<Escape>', self.lost_focus)
-        self._button_binds.append('<Escape>')
-
         self.canvas.focus_force()
         self.root.bind('<FocusOut>', self.lost_focus)
+        self.canvas.bind('<Escape>', self.lost_focus)
+
+        self.canvas.bind('<Return>', cl.pick_selected)
+        self.canvas.bind('<Up>', cl.selector(-1))
+        self.canvas.bind('<Down>', cl.selector(+1))
+
+        self._button_binds.extend(['<Escape>', '<Return>', '<Up>', '<Down>'])
 
     # -- fading -- #
 
@@ -437,3 +460,33 @@ class DrawJob:
     def cancel_remaining(self):
         for i in range(max(0, self.last_fun_i), len(self._funs)):
             self._funs[i] = None
+
+
+class CanvasList:
+    def __init__(self, config, canvas, cur_i):
+        self.canvas = canvas
+        self.c = config
+
+        self.activate_funs = []
+        self.rows = []
+        self.cur_i = 0 if cur_i < 0 else cur_i
+
+    def add_row(self, new_row, row_fun):
+        self.rows.append(new_row)
+        self.activate_funs.append(row_fun)
+
+    def pick_selected(self, *args):
+        if self.cur_i < 0:
+            return
+        self.activate_funs[self.cur_i]()
+
+    def selector(self, d_i):
+        diff = d_i
+
+        def change_select(*args):
+            self.cur_i = (self.cur_i + diff) % len(self.rows)
+            # update drawing
+            self.canvas.itemconfig('list_row', fill=self.c.BORDER_COLOR)
+            self.canvas.itemconfig(self.rows[self.cur_i], fill=self.c.SELECTION_COLOR)
+
+        return change_select

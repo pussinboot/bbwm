@@ -265,6 +265,7 @@ class BBWM:
         win_list = []
         x, y = self.gui._calc_mon_offset()
         d_i = self.display_ind
+        cur_i = -1
         l_m = len(self.win_methods.monitors)
         monitor_hints = {((d_i - 1) % l_m): 'Pg ⇩', ((d_i + 1) % l_m): 'Pg ⇧'}
 
@@ -278,12 +279,14 @@ class BBWM:
                     if p.window is not None:
                         txt = c
                         win_list.append((c, p.window.title, self._part_picker(p)))
+                        if p == cur_part:
+                            cur_i = c - 1
                         c += 1
                     else:
                         txt = ''
                     self.gui.draw_win(p.dims.get_win_dims(self.c), x, y, txt, p == cur_part)
 
-        self.gui.draw_menu_list(win_list, self.display_changers, x, y)
+        self.gui.draw_menu_list(win_list, self.display_changers, x, y, cur_i)
 
     def draw_workspaces(self):
         self.gui.fofi_draw('workspaces', self._draw_workspaces)
