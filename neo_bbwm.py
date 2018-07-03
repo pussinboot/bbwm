@@ -42,6 +42,7 @@ class BBWM:
         self.setup_hotkeys()
         # temp binds for popup menus
 
+        # monitor changing
         def m_kb(dir):
             d = dir
 
@@ -52,6 +53,45 @@ class BBWM:
             return m_kb_fun
 
         self.display_changers = [('<Prior>', m_kb(+1)), ('<Next>', m_kb(-1))]
+
+        # split adjustment
+        def gen_split_adjust_fun(adj):
+            d = adj
+
+            def adjuster(*args):
+                cur_ratio = int(self.cur_adjust_part.split.r * self.c.N_KB_RATIOS)
+                new_ratio = cur_ratio + d
+                new_ratio = max(1, min(self.c.N_KB_RATIOS - 1, new_ratio))
+                self.resplit(self.cur_adjust_part, new_ratio / self.c.N_KB_RATIOS, False)
+                self.gui.move_split(self.cur_adjust_part)
+
+            return adjuster
+
+        def split_adjust_picker_fun(h_key, v_key):
+            key_lu = [h_key, v_key]
+
+            def picked_adjust_fun(*args):
+                if self.cur_adjust_part is None:
+                    return
+                key = key_lu[self.cur_adjust_part.split.d == 'v']
+                self.split_adjusters[key]()
+
+            return picked_adjust_fun
+
+        self.split_adjusters = {
+            '-': gen_split_adjust_fun(-1),
+            '+': gen_split_adjust_fun(+1),
+            'up': self._split_adjust_go_up,
+            'down': self._split_adjust_go_down,
+        }
+
+        self.split_adjust_binds = [
+            ('<Left>', split_adjust_picker_fun('-', 'up')),
+            ('<Right>', split_adjust_picker_fun('+', 'down')),
+            ('<Up>', split_adjust_picker_fun('up', '-')),
+            ('<Down>', split_adjust_picker_fun('down', '+')),
+            ('<Tab>', self._split_adjust_go_next)
+        ]
 
         # rdy to go
         self.win_methods.start_monitoring()
@@ -303,12 +343,15 @@ class BBWM:
         self.gui.fofifo_draw('parts', draw_later)
 
     def _redraw_splits(self):
+        self.gui.clear_screen()
+        for s_s in self.cur_adjust_part.split_siblings:
+            if s_s == self.cur_adjust_part:
+                continue
+            self.gui.draw_part(s_s.dims, False)
+            self.gui.draw_split(s_s, False, False)
+
         self.gui.draw_part(self.cur_adjust_part.dims, True, True)
         self.gui.draw_split(self.cur_adjust_part, True)
-
-    def _first_draw_splits(self):
-        self.gui.clear_screen()
-        self._redraw_splits()
 
     def draw_splits(self):
         self.cur_adjust_part = self.workspace.cur_part.parent
@@ -317,55 +360,38 @@ class BBWM:
 
         self.cur_adjust_stack = []
 
-        def gen_adjust_fun(adj):
-            d = adj
+        self.gui.split_menu(self.split_adjust_binds)
+        self.gui.fofi_draw('splits', self._redraw_splits)
 
-            def adjuster(*args):
-                cur_ratio = int(self.cur_adjust_part.split.r * self.c.N_KB_RATIOS)
-                new_ratio = cur_ratio + d
-                new_ratio = max(1, min(self.c.N_KB_RATIOS - 1, new_ratio))
-                self.resplit(self.cur_adjust_part, new_ratio / self.c.N_KB_RATIOS, False)
-                self.gui.move_split(self.cur_adjust_part)
+    def _split_adjust_go_up(self, *args):
+        if self.cur_adjust_part.parent is None:
+            return
+        self.cur_adjust_stack.append(self.cur_adjust_part)
+        self.cur_adjust_part = self.cur_adjust_part.parent
+        self._redraw_splits()
 
-            return adjuster
-
-        def go_up(*args):
-            if self.cur_adjust_part.parent is None:
+    def _split_adjust_go_down(self, *args):
+        if self.cur_adjust_part.is_empty:
+            return
+        elif len(self.cur_adjust_stack) != 0:
+            self.cur_adjust_part = self.cur_adjust_stack.pop()
+            self._redraw_splits()
+        else:
+            poss_next = [c for c in self.cur_adjust_part.children if c.split is not None]
+            if len(poss_next) == 0:
                 return
-            self.cur_adjust_stack.append(self.cur_adjust_part)
-            self.cur_adjust_part = self.cur_adjust_part.parent
+            self.cur_adjust_part = poss_next[0]
             self._redraw_splits()
 
-        def go_down(*args):
-            if self.cur_adjust_part.is_empty:
-                return
-            elif len(self.cur_adjust_stack) != 0:
-                self.cur_adjust_part = self.cur_adjust_stack.pop()
-                self._redraw_splits()
-            else:
-                poss_next = [c for c in self.cur_adjust_part.children if c.split is not None]
-                if len(poss_next) == 0:
-                    return
-                self.cur_adjust_part = poss_next[0]
-                self._redraw_splits()
-
-        def go_next(*args):
-            poss_next = [c for c in self.cur_adjust_part.siblings if c.split is not None]
-            lpn = len(poss_next)
-            if lpn <= 1:
-                return
-            cur_i = poss_next.index(self.cur_adjust_part)
-            self.cur_adjust_part = poss_next[(cur_i + 1) % lpn]
-            self.cur_adjust_stack = []
-            self._redraw_splits()
-
-        temp_binds = [
-            ('<Left>', gen_adjust_fun(-1)), ('<Right>', gen_adjust_fun(1)),
-            ('<Up>', go_up), ('<Down>', go_down), ('<Tab>', go_next)
-        ]
-
-        self.gui.split_menu(temp_binds)
-        self.gui.fofi_draw('splits', self._first_draw_splits)
+    def _split_adjust_go_next(self, *args):
+        poss_next = self.cur_adjust_part.split_siblings
+        lpn = len(poss_next)
+        if lpn <= 1:
+            return
+        cur_i = poss_next.index(self.cur_adjust_part)
+        self.cur_adjust_part = poss_next[(cur_i + 1) % lpn]
+        self.cur_adjust_stack = []
+        self._redraw_splits()
 
     def draw_menu(self):
 
@@ -403,8 +429,8 @@ class BBWM:
 
             ('windows+left', self.move_and_focus, ['l'], True),
             ('windows+right', self.move_and_focus, ['r'], True),
-            ('windows+up', self.move_and_focus, ['u'], True, False),
-            ('windows+down', self.move_and_focus, ['d'], True, False),
+            ('windows+up', self.move_and_focus, ['u'], False, False),
+            ('windows+down', self.move_and_focus, ['d'], False, False),
 
             # unforunately doing win+shift+[dir] causes weird behavior
             # sometimes it swaps, sometimes it doesn't

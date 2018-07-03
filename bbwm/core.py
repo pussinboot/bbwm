@@ -281,6 +281,10 @@ class Partition:
             return self.parent.children
         return []
 
+    @property
+    def split_siblings(self):
+        return [c for c in self.siblings if c.split is not None]
+
     def __iter__(self):
         for b in self.children:
             yield b
