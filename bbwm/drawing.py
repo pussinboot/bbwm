@@ -151,14 +151,16 @@ class BBDraw:
                 self.canvas.delete(self._last_part)
             self._last_part = rect
 
-    def draw_split(self, part, single=False):
+    def draw_split(self, part, single=False, inactive=True):
         split = part.split
         if split.t is not None:  # for now we will not draw equal spaced splits
             return
         x, y, rx, by, w = self._calc_split_line(part)
 
+        fill = self.c.BORDER_HIGHLIGHT_COLOR if inactive else self.c.SELECTION_COLOR
+
         new_line = self.canvas.create_line(x, y, rx, by,
-                                           fill=self.c.BORDER_HIGHLIGHT_COLOR,
+                                           fill=fill,
                                            activefill=self.c.BORDER_COLOR,
                                            width=w,
                                            tags=(split.d if split.t is None else '')
