@@ -5,7 +5,6 @@ import bbwm.win_api as bb_api
 import bbwm.tiling as bb_tile
 
 import tkinter as tk
-import keyboard
 
 
 class BBWM:
@@ -38,8 +37,9 @@ class BBWM:
         self.gui.unfocus_fun = self.refocus
         # self.win_methods.hwnd_to_win[self.gui.hwnd] = None
 
-        # setup keybinds
+        self.hotkey_to_fun = {}
         self.setup_hotkeys()
+
         # temp binds for popup menus
 
         # monitor changing
@@ -200,10 +200,10 @@ class BBWM:
             self.refocus()
 
     def tile_dir(self, d):
-        if keyboard.is_pressed('shift'):
-            return
         new_win = self.win_methods.get_focused_window()
-        new_win = None if new_win.part is not None else new_win
+
+        if new_win is not None:
+            new_win = None if new_win.part is not None else new_win
 
         if new_win is not None and self.c.PRETTY_WINS:
             new_win.undecorate()
@@ -410,44 +410,47 @@ class BBWM:
 
     # maint
 
-    def _add_hotkey(self, hotkey, func, args=[], trigger_on_release=False, suppress=True):
-        keyboard.add_hotkey(hotkey, func, args=args, suppress=suppress,
-                            trigger_on_release=trigger_on_release)
+    def _add_hotkey(self, key_combo, func, args=[], trigger_on_release=False, suppress=True):
+        new_hk_id = self.win_methods.add_hotkey(key_combo)
+        rrr = args
+
+        def execute():
+            func(*rrr)
+
+        self.hotkey_to_fun[new_hk_id] = execute
 
     def setup_hotkeys(self):
         all_binds = [
-            ('windows+z', self.tile),
-            ('windows+d', self.rotate, [], True),
-            ('windows+x', self.untile, [], True),
+            ('alt+f5', self.tile),
+            ('alt+f6', self.untile, [], True),
+            ('alt+f7', self.rotate, [], True),
 
-            ('windows+a', self.tile_dir, ['h']),
-            ('windows+s', self.tile_dir, ['v']),
+            ('alt+f8', self.tile_dir, ['h']),
+            ('alt+f9', self.tile_dir, ['v']),
 
-            ('windows+f', self.draw_splits),
-            ('windows+q', self.draw_menu),
-            ('windows+w', self.draw_workspaces),
+            ('alt+f10', self.draw_splits),
+            ('alt+f11', self.draw_menu),
+            ('alt+f12', self.draw_workspaces),
 
-            ('windows+left', self.move_and_focus, ['l'], True),
-            ('windows+right', self.move_and_focus, ['r'], True),
-            ('windows+up', self.move_and_focus, ['u'], False, False),
-            ('windows+down', self.move_and_focus, ['d'], False, False),
+            ('win+f5', self.move_and_focus, ['u'], True),
+            ('win+f6', self.move_and_focus, ['d'], True),
+            ('win+f7', self.move_and_focus, ['l'], True),
+            ('win+f8', self.move_and_focus, ['r'], True),
 
-            # unforunately doing win+shift+[dir] causes weird behavior
-            # sometimes it swaps, sometimes it doesn't
-            ('ctrl+alt+left', self.swap_and_focus, ['l'], True),
-            ('ctrl+alt+right', self.swap_and_focus, ['r'], True),
-            ('ctrl+alt+up', self.swap_and_focus, ['u'], True),
-            ('ctrl+alt+down', self.swap_and_focus, ['d'], True),
+            ('win+f9', self.swap_and_focus, ['u'], True),
+            ('win+f10', self.swap_and_focus, ['d'], True),
+            ('win+f11', self.swap_and_focus, ['l'], True),
+            ('win+f12', self.swap_and_focus, ['r'], True),
 
-            ('ctrl+alt+1', self.change_workspace, [0], True),
-            ('ctrl+alt+2', self.change_workspace, [1], True),
-            ('ctrl+alt+3', self.change_workspace, [2], True),
+            ('win+f2', self.change_workspace, [0], True),
+            ('win+f3', self.change_workspace, [1], True),
+            ('win+f4', self.change_workspace, [2], True),
 
-            ('windows+page up', self.change_display, [+1], True),
-            ('windows+page down', self.change_display, [-1], True),
+            ('win+pgup', self.change_display, [+1], True),
+            ('win+pgdown', self.change_display, [-1], True),
 
-            ('ctrl+alt+q', self.quit_helper),
-            ('ctrl+alt+r', self.debug_display),
+            ('win+shift+q', self.quit_helper),
+            ('win+shift+r', self.debug_display),
         ]
 
         for bind in all_binds:
@@ -478,6 +481,8 @@ class BBWM:
                 del self.win_methods.hwnd_to_win[msg[1]]
                 self.resize_wins()
                 self._just_closed = True
+        elif msg[0] in self.hotkey_to_fun:
+            self.hotkey_to_fun[msg[0]]()
 
     def quit_helper(self):
         if self.c.PRETTY_WINS:
@@ -486,7 +491,14 @@ class BBWM:
                     w.redecorate()
                 except:
                     pass
+
+        # need to unhide wins on each workspace :/
+        # sticking these two in the loop above didnt work
+        # w.unhide()
+        # w.focus()
+
         if self.win_methods.spy is not None:
+            self.win_methods.unbind_hotkeys()
             self.win_methods.spy.destroy()
         self.gui.root.destroy()
 

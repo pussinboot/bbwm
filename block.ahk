@@ -7,136 +7,47 @@
 ;;;;;;;;;;;;
 
 ;; tile w/ default scheme
-#Z::
-{
-  return
-}
-
+#Z:: Send !{F5}
 ;; untile
-#X::
-{
-  return
-}
+#X:: Send !{F6}
+;; rotate tile type
+#D:: Send !{F7}
 
 ;; tile horiz
-#A::
-{
-  return
-}
-
+#A:: Send !{F8}
 ;; tile vert
-#S::
-{
-  return
-}
+#S:: Send !{F9}
 
-;; rotate tile type
-#D::
-{
-  return
-}
 
 ;; edit split ratios
-#F::
-{
-  return
-}
-
-;; fake tile horiz
-#Q::
-{
-  return
-}
-
-;; fake tile vert
-#W::
-{
-  return
-}
+#F:: Send !{F10}
+;; draw menu
+#Q:: Send !{F11}
+;; draw workspaces
+#W:: Send !{F12}
 
 ;;;;;;;;;;;;;;
 ;; movement ;;
 ;;;;;;;;;;;;;;
 
-#Up::
-{
-  return
-}
-
-#Down::
-{
-  return
-}
-
-;; ignore these
-#+Up::
-{
-  return
-}
-
-#+Down::
-{
-  return
-}
-
-#Left::
-{
-  return
-}
-
-#Right::
-{
-  return
-}
+#up:: Send #{F5}
+#down:: Send #{F6}
+#left:: Send #{F7}
+#right:: Send #{F8}
 
 ;;;;;;;;;;;;;;
 ;; swapping ;;
 ;;;;;;;;;;;;;;
+#^up:: Send #{F9}
+#^down:: Send #{F10}
+#^left:: Send #{F11}
+#^right:: Send #{F12}
 
-^!Up::
-{
-  return
-}
-
-^!Down::
-{
-  return
-}
-
-^!Left::
-{
-  return
-}
-
-^!Right::
-{
-  return
-}
 
 ;;;;;;;;;;;;;;;;
 ;; workspaces ;;
 ;;;;;;;;;;;;;;;;
 
-^!1::
-{
-  return
-}
-
-^!2::
-{
-  return
-}
-
-^!3::
-{
-  return
-}
-
-;;;;;;;;;
-;; gui ;;
-;;;;;;;;;
-
-#C::
-{
-  return
-}
+^!1:: Send #{F2}
+^!2:: Send #{F3}
+^!3:: Send #{F4}
