@@ -8,8 +8,11 @@ from ctypes import windll
 
 from .core import Dims
 
+from collections import namedtuple
+
+
 # regex for custom stuff
-BANNED_WINDOW_TITLES = ['__bbwm__', 'Cortana', 'BlackBox']
+BANNED_WINDOW_TITLES = ['__bbwm__', 'Cortana', 'Blackbox']
 
 
 class WinWin:
@@ -120,6 +123,41 @@ class WinWin:
             return ''
 
 
+mod_lookup = {
+    "ctrl": win32con.MOD_CONTROL, "alt": win32con.MOD_ALT,
+    "win": win32con.MOD_WIN, "shift": win32con.MOD_SHIFT,
+}
+
+vk_lookup = {
+    "up": win32con.VK_UP, "down": win32con.VK_DOWN,
+    "left": win32con.VK_LEFT, "right": win32con.VK_RIGHT,
+
+    "pgup": win32con.VK_PRIOR, "pgdown": win32con.VK_NEXT,
+    "home": win32con.VK_HOME, "end": win32con.VK_END,
+    "insert": win32con.VK_INSERT, "delete": win32con.VK_DELETE,
+
+    "tab": win32con.VK_TAB, "escape": win32con.VK_ESCAPE, "backspace": win32con.VK_BACK,
+    "enter": win32con.VK_RETURN, "space": win32con.VK_SPACE,
+
+    "f1": win32con.VK_F1, "f2": win32con.VK_F2, "f3": win32con.VK_F3, "f4": win32con.VK_F4,
+    "f5": win32con.VK_F5, "f6": win32con.VK_F6, "f7": win32con.VK_F7, "f8": win32con.VK_F8,
+    "f9": win32con.VK_F9, "f10": win32con.VK_F10, "f11": win32con.VK_F11, "f12": win32con.VK_F12,
+    "f13": win32con.VK_F13, "f14": win32con.VK_F14, "f15": win32con.VK_F15, "f16": win32con.VK_F16,
+    "f17": win32con.VK_F17, "f18": win32con.VK_F18, "f19": win32con.VK_F19, "f20": win32con.VK_F20,
+    "f21": win32con.VK_F21, "f22": win32con.VK_F22, "f23": win32con.VK_F23, "f24": win32con.VK_F24
+}
+
+
+class KeyBind(namedtuple('KeyBind', ['id', 'mods', 'virt_keys'])):
+    __slots__ = ()
+
+    def register(self, hwnd):
+        return windll.user32.RegisterHotKey(hwnd, self.id, self.mods, self.virt_keys)
+
+    def unregister(self, hwnd):
+        windll.user32.UnregisterHotKey(hwnd, self.id)
+
+
 class WinMethods:
     def __init__(self, msg_processor=None):
         self.monitors = []
@@ -133,10 +171,12 @@ class WinMethods:
 
         self.msg_processor = msg_processor
         self.spy = None
+        self.hotkeys = []
 
         self.msg_type_to_action = {
             win32con.HSHELL_WINDOWCREATED: 'new_win',
             win32con.HSHELL_WINDOWDESTROYED: 'close_win',
+            win32con.WM_HOTKEY: 'hotkey',
             32772: 'focus_win',
         }
 
@@ -208,20 +248,53 @@ class WinMethods:
     def set_mouse_pos(self, dims):
         win32api.SetCursorPos((dims.midpoint()))
 
+    def add_hotkey(self, key_combo):
+        hk_id = len(self.hotkeys) + 1
+
+        mods = 0
+        vk = 0
+        split_keys = key_combo.split('+')
+
+        for k in split_keys:
+            if k in mod_lookup:
+                mods += mod_lookup[k]
+            elif k in vk_lookup:
+                vk = vk_lookup[k]
+            else:
+                vk = ord(k.upper())
+
+        self.hotkeys.append(KeyBind(hk_id, mods, vk))
+        return hk_id
+
+    def unbind_hotkeys(self):
+        spy_hwnd = self.spy.hwnd
+        for hk in self.hotkeys:
+            hk.unregister(spy_hwnd)
+
     def _intercept_msgs(self):
         self.spy = WinTaskIcon()
+        spy_hwnd = self.spy.hwnd
+
+        for hk in self.hotkeys:
+            hk.register(spy_hwnd)
+
         msg = self.spy.get_msg()
         while msg:
-            # print(msg)
             # process msg
+            pass_it_on = True
+
             lparam = msg[1][2]
-            if lparam in self.msg_type_to_action:
-                hwnd = msg[1][3]
-                # point = msg[1][5]
+            hwnd = msg[1][3]
+            # point = msg[1][5]
+            if msg[1][1] == win32con.WM_HOTKEY:
+                action_hint = lparam
+            elif lparam in self.msg_type_to_action:
+                action_hint = self.msg_type_to_action[lparam]
+            else:
+                pass_it_on = False
+            if pass_it_on:
                 monitor_i = self.monitor_from_hwnd(hwnd)
-
-                self._handle_msg((self.msg_type_to_action[lparam], hwnd, monitor_i))
-
+                self._handle_msg((action_hint, hwnd, monitor_i))
             msg = self.spy.get_msg()
 
     def _handle_msg(self, msg):
