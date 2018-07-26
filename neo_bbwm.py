@@ -20,7 +20,7 @@ class BBWM:
 
         self.display_ind = 0
         self.workspace_inds = [0] * self.num_displays
-        self._hiding_wins = False
+        self._hiding_wins = 0
         self._just_closed = False
 
         self.workspaces = []
@@ -108,13 +108,13 @@ class BBWM:
             return
         # hide cur workspace
         if new_ind != self.workspace_inds[self.display_ind]:
-            self._hiding_wins = True
             all_parts = self.workspace.find_leaf_parts()
+            self._hiding_wins = len(all_parts)
             for p in all_parts:
                 if p.window is not None:
                     p.window.hide()
-
-        self._hiding_wins = False
+                else:
+                    self._hiding_wins -= 1
 
         # show new one
         self.workspace_inds[self.display_ind] = new_ind
@@ -122,7 +122,6 @@ class BBWM:
         for p in all_parts:
             if p.window is not None:
                 p.window.unhide()
-                p.window.focus()  # do this to bring them all up front again
         # restore focus
         if self.workspace.cur_part.window is not None:
             self.workspace.cur_part.window.focus(True)
@@ -467,7 +466,8 @@ class BBWM:
             self._just_closed = False
         elif msg[0] == 'close_win':
             # apparently hiding windows sends the same msg as closing them..
-            if self._hiding_wins:
+            if self._hiding_wins > 0:
+                self._hiding_wins -= 1
                 return
             w = self.win_methods._get_or_add_win(msg[1], False)
             if w is not None and w.part is not None:
@@ -485,17 +485,13 @@ class BBWM:
             self.hotkey_to_fun[msg[0]]()
 
     def quit_helper(self):
-        if self.c.PRETTY_WINS:
-            for _, w in self.win_methods.hwnd_to_win.items():
-                try:
+        for _, w in self.win_methods.hwnd_to_win.items():
+            try:
+                w.unhide()
+                if self.c.PRETTY_WINS:
                     w.redecorate()
-                except:
-                    pass
-
-        # need to unhide wins on each workspace :/
-        # sticking these two in the loop above didnt work
-        # w.unhide()
-        # w.focus()
+            except:
+                pass
 
         if self.win_methods.spy is not None:
             self.win_methods.unbind_hotkeys()

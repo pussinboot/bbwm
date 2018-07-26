@@ -86,6 +86,7 @@ class WinWin:
     def unhide(self):
         if not self.is_visible:
             win32gui.ShowWindow(self.hwnd, win32con.SW_SHOWNORMAL)
+            win32gui.BringWindowToTop(self.hwnd)
 
     @property
     def is_focused(self):
@@ -105,7 +106,7 @@ class WinWin:
                 return self.center_on_me()
             return True
         except Exception as e:
-            print(e)
+            pass
 
     def center_on_me(self):
         try:
