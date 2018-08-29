@@ -17,6 +17,8 @@
 #A:: Send !{F8}
 ;; tile vert
 #S:: Send !{F9}
+;; tile mono
+#C:: Send ^{F6}
 
 
 ;; edit split ratios
@@ -30,19 +32,19 @@
 ;; movement ;;
 ;;;;;;;;;;;;;;
 
-#up:: Send #{F5}
-#down:: Send #{F6}
-#left:: Send #{F7}
-#right:: Send #{F8}
+#up:: Send {Blind}#{F5}
+#down:: Send {Blind}#{F6}
+#left:: Send {Blind}#{F7}
+#right:: Send {Blind}#{F8}
 
 ;;;;;;;;;;;;;;
 ;; swapping ;;
 ;;;;;;;;;;;;;;
+
 #^up:: Send #{F9}
 #^down:: Send #{F10}
 #^left:: Send #{F11}
 #^right:: Send #{F12}
-
 
 ;;;;;;;;;;;;;;;;
 ;; workspaces ;;

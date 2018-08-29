@@ -207,10 +207,7 @@ class BBWM:
         if new_win is not None and self.c.PRETTY_WINS:
             new_win.undecorate()
 
-        if d == 'v':
-            self.workspace.split_v(new_win=new_win)
-        else:
-            self.workspace.split_h(new_win=new_win)
+        self.workspace._split(d, new_win=new_win)
 
         self.resize_wins()
         self.refocus()
@@ -426,6 +423,7 @@ class BBWM:
 
             ('alt+f8', self.tile_dir, ['h']),
             ('alt+f9', self.tile_dir, ['v']),
+            ('ctrl+f6', self.tile_dir, ['n']),
 
             ('alt+f10', self.draw_splits),
             ('alt+f11', self.draw_menu),
@@ -487,9 +485,10 @@ class BBWM:
     def quit_helper(self):
         for _, w in self.win_methods.hwnd_to_win.items():
             try:
-                w.unhide()
-                if self.c.PRETTY_WINS:
-                    w.redecorate()
+                if w.part is not None:
+                    w.unhide()
+                    if self.c.PRETTY_WINS:
+                        w.redecorate()
             except:
                 pass
 

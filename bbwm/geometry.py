@@ -41,6 +41,11 @@ class Dims(namedtuple('Dims', ['x', 'y', 'w', 'h'])):
         tor.append(Dims(self.x, self.y + self.h - final_h, self.w, final_h))
         return tor
 
+    def split_n(self, r=0):
+        d1 = Dims(self.x, self.y, self.w, self.h)
+        d2 = Dims(self.x, self.y, self.w, self.h)
+        return d1, d2
+
     def resize(self, d, r, i):
         if d == 'v':
             return self.split_v(r)[i]
@@ -80,19 +85,20 @@ class Dims(namedtuple('Dims', ['x', 'y', 'w', 'h'])):
         return self._get_offset_dims(*c.BORDER_OFFSETS)
 
 
-class Split(namedtuple('Split', ['d', 'r', 't'])):
-    # direction, ratio and index
+class Split(namedtuple('Split', ['d', 'r', 't', 'c'])):
+    # direction, ratio, type, & count
     # direction can be either
     # h - horizontal
     # v - vertical
     # n - neither
     # ratio is a float between 0 and 1
     # t = type
+    # c = count (used for rotating))
     __slots__ = ()
 
     def __str__(self):
         return 'split : (d: {}, r: {:01.3f})'.format(self.d, self.r)
 
-    def __new__(cls, d, r, t=None):
-        return super(Split, cls).__new__(cls, d, r, t)
+    def __new__(cls, d, r, t=None, c=0):
+        return super(Split, cls).__new__(cls, d, r, t, c)
 

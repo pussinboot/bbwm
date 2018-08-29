@@ -79,11 +79,14 @@ class Workspace:
             tor.extend(self._traverse(p, filter_fun))
         return tor
 
-    def _bottom_up_traverse(self, part):
+    def _bottom_up_traverse(self, part, stopping_condition=None):
+        if stopping_condition is None:
+            def stopping_condition(p):
+                return not isinstance(p, Partition)
+
         tor = [part]
-        # actually nvm the partition isinstance check.. if i want workspaces within
-        if part.parent is not None:
-            tor.extend(self._bottom_up_traverse(part.parent))
+        if part.parent is not None and not stopping_condition(part):
+            tor.extend(self._bottom_up_traverse(part.parent, stopping_condition))
         return tor
 
     def find_leaf_parts(self, root=None):
@@ -131,13 +134,21 @@ class Workspace:
         return next_ps
 
     def find_move(self, d, n):
-        cp = self.cur_part
         axis = 1 if d == 'v' else 0
+        cp = self.cur_part
 
         n_ps = self.find_neighbors(d)
         i = n_ps.index(cp)
         new_i = i + n
+
         if new_i < 0 or new_i >= len(n_ps):
+            # mono tiling
+            bot_up = self._bottom_up_traverse(cp, lambda p: p.split is not None and p.split.d == 'n')
+            if len(bot_up) and bot_up[-1].split is not None:
+                if bot_up[-1].split.d == 'n':
+                    n_ps = self._traverse(bot_up[-1], lambda p: p.is_empty and p != cp)
+                    if len(n_ps):
+                        return n_ps[0]
             return  # no wraparound..
         # now sort by distance
         next_ps = n_ps[new_i::n]
@@ -171,20 +182,28 @@ class Workspace:
                 cw.part = next_part
             self.cur_part = next_part
 
-    def split_h(self, r=0.5, new_win=None):
-        nps = self.cur_part.split_h(r, new_win)
-        if nps is not None:
-            self.cur_part = nps[0]
-        self.tile_scheme.manual_tile(nps, new_win)
+    def _split(self, d, r=0.5, new_win=None):
+        # mono tiling is buggy so no you cant split further sorry
+        # fixing this will require properly tackling same issue
+        # that's plaguing switching tiling schemes
+        # (some way to go up and down making extra partitions as needed)
+        # ((this is too ugly lol))
+        if self.cur_part.parent is not None and self.cur_part.parent.split is not None:
+            if self.cur_part.parent.split.d == 'n':
+                return
 
-    def split_v(self, r=0.5, new_win=None):
-        nps = self.cur_part.split_v(r, new_win)
+        if d == 'h':
+            nps = self.cur_part.split_h(r, new_win)
+        elif d == 'v':
+            nps = self.cur_part.split_v(r, new_win)
+        else:
+            nps = self.cur_part.split_n(r, new_win)
+
         if nps is not None:
             self.cur_part = nps[0]
         self.tile_scheme.manual_tile(nps, new_win)
 
     def tile(self, new_win=None):
-        # np = self.tile_scheme.tile(self.cur_part, new_win)
         np = self.cur_part.assoc_ts.tile(self.cur_part, new_win)
         if np is not None:
             self.cur_part = np
@@ -198,8 +217,13 @@ class Workspace:
         pp = part.parent
         if pp.split is None:
             return
+        # neither split dirs dont rotate
+        if pp.split.d == 'n':
+            return
         new_d = 'h' if pp.split.d == 'v' else 'v'
-        pp.split = Split(new_d, pp.split.r, pp.split.t)
+        new_c = (pp.split.c + 1) % 2
+        new_r = 1 - pp.split.r if new_c == 0 else pp.split.r
+        pp.split = Split(new_d, new_r, pp.split.t, new_c)
 
         aff_parts = self._traverse()
 
@@ -338,8 +362,7 @@ class Partition:
         elif d == 'v':
             sf = self.dims.split_v
         else:
-            # adding tabs?
-            return
+            sf = self.dims.split_n
 
         dim1, dim2 = sf(r)
         # move current window into first partition
@@ -387,6 +410,9 @@ class Partition:
 
     def split_v(self, r=0.5, new_win=None):
         return self._split('v', r, new_win)
+
+    def split_n(self, r=0, new_win=None):
+        return self._split('n', r, new_win)
 
 
 # configuration
