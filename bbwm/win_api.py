@@ -22,7 +22,10 @@ class WinWin:
         self.shell = shell
 
     def __str__(self):
-        return 'win: {}'.format(self.hwnd)
+        str_repr = 'win: {}'.format(self.hwnd)
+        if self.part is not None:
+            str_repr = '{}\tpart: {}'.format(str_repr, self.part)
+        return str_repr
 
     @property
     def dims(self):
@@ -105,7 +108,7 @@ class WinWin:
             if also_center:
                 return self.center_on_me()
             return True
-        except Exception as e:
+        except:
             pass
 
     def center_on_me(self):
@@ -247,7 +250,10 @@ class WinMethods:
             pass
 
     def set_mouse_pos(self, dims):
-        win32api.SetCursorPos((dims.midpoint()))
+        try:
+            win32api.SetCursorPos((dims.midpoint()))
+        except:
+            pass
 
     def add_hotkey(self, key_combo):
         hk_id = len(self.hotkeys) + 1
