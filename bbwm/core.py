@@ -415,6 +415,33 @@ class Partition:
         return self._split('n', r, new_win)
 
 
+# displays
+def calc_display_nav(disp_dims):
+
+    dist_funs = {
+        'u': lambda d, o: d.y - o.b_y,
+        'd': lambda d, o: o.y - d.b_y,
+        'l': lambda d, o: d.x - o.r_x,
+        'r': lambda d, o: o.x - d.r_x
+    }
+
+    disp_nav = []
+
+    for i, disp in enumerate(disp_dims):
+        o_disps = [(j, d) for j, d in enumerate(disp_dims) if i != j]
+        d_to_nav = {'u': None, 'd': None, 'l': None, 'r': None}
+        for dx in d_to_nav:
+            o_dists = [(j, dist_funs[dx](disp, o_d)) for (j, o_d) in o_disps]
+            o_dists = [dist for dist in o_dists if dist[1] >= 0]
+            o_dists.sort(key=lambda dist: dist[1])
+            if len(o_dists):
+                d_to_nav[dx] = o_dists[0][0]
+
+        disp_nav.append(d_to_nav)
+
+    return disp_nav
+
+
 # configuration
 class Config:
     def __init__(self):

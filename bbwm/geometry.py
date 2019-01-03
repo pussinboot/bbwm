@@ -4,6 +4,14 @@ from collections import namedtuple
 class Dims(namedtuple('Dims', ['x', 'y', 'w', 'h'])):
     __slots__ = ()
 
+    @property
+    def r_x(self):
+        return self.x + self.w
+
+    @property
+    def b_y(self):
+        return self.y + self.h
+
     def __str__(self):
         return '@ ({:4d},{:4d}) | w: {:4d} h: {:4d}'.format(self.x, self.y, self.w, self.h)
 
