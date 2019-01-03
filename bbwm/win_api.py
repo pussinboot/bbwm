@@ -1,3 +1,4 @@
+import os
 import threading
 import win32con
 import win32gui
@@ -343,8 +344,16 @@ class WinTaskIcon:
         win32gui.UpdateWindow(self.hwnd)
 
         # draw icon
-        # hold onto this in order to show balloons
-        self.icon = win32gui.LoadIcon(0, win32con.IDI_APPLICATION)
+        file_path = os.path.dirname(os.path.realpath(__file__))
+        icon_path = os.path.join(file_path, 'icon.ico')
+        if os.path.exists(icon_path):
+            self.icon = win32gui.LoadImage(win32gui.GetModuleHandle(None),
+                                           icon_path,
+                                           win32con.IMAGE_ICON,
+                                           0, 0, win32con.LR_LOADFROMFILE | win32con.LR_DEFAULTSIZE)
+        else:
+            # hold onto this in order to show balloons
+            self.icon = win32gui.LoadIcon(0, win32con.IDI_APPLICATION)
 
         notify_id = (self.hwnd, 0,
                      win32gui.NIF_ICON | win32gui.NIF_MESSAGE | win32gui.NIF_TIP,
