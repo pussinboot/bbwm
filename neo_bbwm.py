@@ -24,9 +24,13 @@ class BBWM:
         self._just_closed = False
 
         self.workspaces = []
+        disp_dims = []
         for _, display_dims in self.win_methods.monitors:
+            disp_dims.append(display_dims)
             desktop = display_dims.get_ws_dims(self.c)
             self.workspaces.append([bb_core.Workspace(desktop) for _ in range(self.c.NO_WORKSPACES)])
+
+        self.display_nav = bb_core.calc_display_nav(disp_dims)
 
         self.cur_adjust_part = None
         self.cur_adjust_stack = []
@@ -52,7 +56,10 @@ class BBWM:
 
             return m_kb_fun
 
-        self.display_changers = [('<Prior>', m_kb(+1)), ('<Next>', m_kb(-1))]
+        self.display_changers = [('<Home>', m_kb('u')),
+                                 ('<End>', m_kb('d')),
+                                 ('<Delete>', m_kb('l')),
+                                 ('<Next>', m_kb('r'))]  # page down
 
         # split adjustment
         def gen_split_adjust_fun(adj):
@@ -128,9 +135,12 @@ class BBWM:
 
         self.draw_parts()
 
-    def change_display(self, d, redraw=True):
-
-        self.display_ind = (self.display_ind + d) % self.num_displays
+    def change_display(self, dx, redraw=True):
+        nav_dirs = self.display_nav[self.display_ind]
+        next_disp = nav_dirs.get(dx)
+        if next_disp is None:
+            return
+        self.display_ind = next_disp
 
         cp = self.workspace.cur_part
         if redraw and cp.window is not None:
@@ -300,13 +310,23 @@ class BBWM:
         self.gui.clear_screen()
         win_list = []
         x, y = self.gui._calc_mon_offset()
-        d_i = self.display_ind
         cur_i = -1
-        l_m = len(self.win_methods.monitors)
-        monitor_hints = {((d_i - 1) % l_m): 'Pg ⇩', ((d_i + 1) % l_m): 'Pg ⇧'}
+
+        disp_hints = {
+            'u': 'Home',
+            'd': 'End',
+            'l': 'Del',
+            'r': 'Pg ⇩'
+        }
+
+        nav_dirs = self.display_nav[self.display_ind]
+        nav_hints = ['' for _ in range(len(nav_dirs))]
+        for nd, disp_i in nav_dirs.items():
+            if disp_i is not None:
+                nav_hints[disp_i] = disp_hints[nd]
 
         for i, (_, display_dims) in enumerate(self.win_methods.monitors):
-            self.gui.draw_monitor(display_dims, x, y, monitor_hints.get(i, ''))
+            self.gui.draw_monitor(display_dims, x, y, nav_hints[i])
             if i == self.display_ind:
                 all_parts = self.workspace.find_leaf_parts()
                 cur_part = self.workspace.cur_part
@@ -417,6 +437,7 @@ class BBWM:
 
     def setup_hotkeys(self):
         all_binds = [
+            # fake
             ('alt+f5', self.tile),
             ('alt+f6', self.untile, [], True),
             ('alt+f7', self.rotate, [], True),
@@ -443,8 +464,11 @@ class BBWM:
             ('win+f3', self.change_workspace, [1], True),
             ('win+f4', self.change_workspace, [2], True),
 
-            ('win+pgup', self.change_display, [+1], True),
-            ('win+pgdown', self.change_display, [-1], True),
+            ('ctrl+alt+home', self.change_display, ['u'], True),
+            # real
+            ('win+end', self.change_display, ['d'], True),
+            ('win+delete', self.change_display, ['l'], True),
+            ('win+pgdown', self.change_display, ['r'], True),
 
             ('win+shift+q', self.quit_helper),
             ('win+shift+r', self.debug_display),

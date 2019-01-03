@@ -485,6 +485,8 @@ class CanvasList:
         diff = d_i
 
         def change_select(*args):
+            if not len(self.rows):
+                return
             self.cur_i = (self.cur_i + diff) % len(self.rows)
             # update drawing
             self.canvas.itemconfig('list_row', fill=self.c.BORDER_COLOR)

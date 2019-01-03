@@ -53,3 +53,5 @@
 ^!1:: Send #{F2}
 ^!2:: Send #{F3}
 ^!3:: Send #{F4}
+
+#Home:: Send !^{Home}
