@@ -13,7 +13,6 @@ class BBDraw:
         self.root = root
         self.root.title('__bbwm__')
         self.root.attributes('-alpha', self.c.DEFAULT_OPACITY)
-        self.root.wm_attributes("-topmost", True)
         self.root.wm_attributes("-transparentcolor", self.c.TRANSPARENT_COLOR)
         self.root.overrideredirect(True)
 
