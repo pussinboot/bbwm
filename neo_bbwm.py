@@ -35,7 +35,7 @@ class BBWM:
         self.gui = bb_draw.BBDraw(root, self.win_methods.monitor_bbox, self.c)
         self.gui.resplit_fun = self.resplit
         self.gui.unfocus_fun = self.refocus
-        # self.win_methods.hwnd_to_win[self.gui.hwnd] = None
+        self.win_methods.set_topmost(root.winfo_id())
 
         self.hotkey_to_fun = {}
         self.setup_hotkeys()

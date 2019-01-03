@@ -317,6 +317,11 @@ class WinMethods:
                 return
         self.msg_processor(msg)
 
+    def set_topmost(self, hwnd):
+        exstyle = win32gui.GetWindowLong(hwnd, win32con.GWL_EXSTYLE)
+        exstyle |= win32con.WS_EX_TOPMOST
+        win32gui.SetWindowLong(hwnd, win32con.GWL_EXSTYLE, exstyle)
+
     def start_monitoring(self):
         self.msg_thread = threading.Thread(target=self._intercept_msgs, daemon=True)
         self.msg_thread.start()
