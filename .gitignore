@@ -99,3 +99,5 @@ $RECYCLE.BIN/
 
 # Windows shortcuts
 *.lnk
+bbwm_project.sublime-project
+bbwm_project.sublime-workspace
